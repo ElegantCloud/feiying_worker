@@ -18,7 +18,7 @@ def main():
         parser.print_help()
         sys.exit()
 
-    cmd = "curl -G http://%s/schedule.json -d project=%s -d spider=" % (options.scrapyd,
+    cmd = "curl http://%s/schedule.json -d project=%s -d spider=" % (options.scrapyd,
             options.project)
 
     sched = Scheduler()
