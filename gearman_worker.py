@@ -87,6 +87,15 @@ def download_movie(worker, job, trackers, domain, db):
     download(vid, video_url, trackers, domain)
     update_status(db, 'fy_movie', source_id, 2) 
 
+def download_video(worker, job, trackers, domain, db):
+    data = json.loads(job.data)
+    source_id = data['source_id']
+    video_url = data['video_url']
+    vid = source_id + '.mp4'
+    update_status(db, 'fy_video', source_id, 1) 
+    download(vid, video_url, trackers, domain)
+    update_status(db, 'fy_video', source_id, 2) 
+
 def worker_wrapper(func, trackers, domain, db):
     def f(w, j):
         func(w, j, trackers, domain, db)
@@ -99,7 +108,7 @@ def main():
     parser.add_option('-g', '--gearman-servers', dest='gs', default='192.168.1.233:4730',
             help='gearman server list')
     parser.add_option('-w', '--worker-type', dest='worker', 
-            help='worker type: (movie|series|useries)')
+            help='worker type: (movie|series|useries|video)')
     parser.add_option('-m', '--mogilefs-trackers', dest='trackers', default='192.168.1.233:7001', 
             help='mogilefs trackers ---- ip:port[,ip:port]')
     parser.add_option('-d', '--mogilefs-domain', dest='domain', default='testdomain',
@@ -123,6 +132,7 @@ def main():
         sys.exit()
 
     name_dict = {
+            'video':{'name':'fy_video_download', 'func':download_video},
             'movie':{'name':'fy_movie_download', 'func':download_movie},
             'series':{'name':'fy_series_download', 'func':download_series},
             'useries':{'name':'fy_updating_series_download', 'func':download_updating_series}
@@ -130,7 +140,7 @@ def main():
     
     item = name_dict[options.worker]
     if item == None:
-        print 'The value of -w should be (movie|series|useries)'
+        print 'The value of -w should be (movie|series|useries|video)'
         sys.exit()
 
     db = oursql.connect(
