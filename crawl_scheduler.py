@@ -1,0 +1,46 @@
+# crawl_scheduler.py
+
+import gearman
+import os
+import sys
+from optparse import OptionParser
+from apscheduler.scheduler import Scheduler
+
+def main():
+    parser = OptionParser()
+    parser.add_option('--scrapyd', dest='scrapyd', default='192.168.1.233:6800',
+            help='scrapyd url')
+    parser.add_option('--project', dest='project', default='feiying',
+            help='scrapy project name')
+
+    (options, args) = parser.parse_args()
+    if options.scrapyd == None or options.project == None:
+        parser.print_help()
+        sys.exit()
+
+    cmd = "curl -G http://%s/schedule.json -d project=%s -d spider=" % (options.scrapyd,
+            options.project)
+
+    sched = Scheduler()
+    sched.daemonic = False
+
+    @sched.cron_schedule(minute=20)
+    def crawl_youku_video():
+        os.system(cmd + 'youku_video')
+
+    @sched.cron_schedule(minute=40)
+    def crawl_tudou_video():
+        os.system(cmd + 'tudou_video')
+
+    @sched.cron_schedule(hour=11, minute=39)
+    def crawl_letv_movie():
+        os.system(cmd + 'letv_movie')
+             
+    @sched.cron_schedule(hour=16, minute=48)
+    def crawl_letv_series():
+        os.system(cmd + 'letv_series')
+
+    sched.start()
+
+if __name__ == '__main__':
+    main()
