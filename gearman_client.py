@@ -5,6 +5,7 @@ import gearman
 import oursql
 import sys
 from optparse import OptionParser
+from apscheduler.scheduler import Scheduler
 
 
 class FeiyingGearmanClient(object):

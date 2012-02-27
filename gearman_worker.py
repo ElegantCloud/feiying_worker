@@ -9,9 +9,8 @@ import sys
 import urlparse
 from optparse import OptionParser
 
-def update_status(db, table, source_id, status):
-#    print 'update %s, %s, %s' % (table, source_id, status)
-    sql = """ UPDATE %s SET status=? WHERE source_id=? """ % (table,)
+def update_status(db, source_id, status):
+    sql = """ UPDATE fy_video SET status=? WHERE source_id=? """ 
     param = (status, source_id)
     with db.cursor() as cursor:
         cursor.execute(sql, param)
@@ -60,9 +59,9 @@ def download_series(worker, job, trackers, domain, db):
     el = get_episodes(source_id, db)
     if el == None:
         return
-    update_status(db, 'fy_tv_series', source_id, 1) 
+    update_status(db, source_id, 1) 
     download_episodes(db, source_id, el, trackers, domain)
-    update_status(db, 'fy_tv_series', source_id, 2) 
+    update_status(db, source_id, 2) 
 
 def download_updating_series(worker, job, trackers, domain, db):
     data = json.loads(job.data)
@@ -70,31 +69,24 @@ def download_updating_series(worker, job, trackers, domain, db):
     el = get_episodes(source_id, db)
     if el == None:
         return
-    update_status(db, 'fy_tv_series', source_id, 1) 
+    update_status(db, source_id, 1) 
     download_episodes(db, source_id, el, trackers, domain)
-#    update_status(db, 'fy_tv_series', source_id, 2) 
     sql = "UPDATE fy_tv_series SET episode_count=? WHERE source_id=?"
     param = (len(el), source_id)
     with db.cursor() as cursor:
         cursor.execute(sql, param)
-
-def download_movie(worker, job, trackers, domain, db):
-    data = json.loads(job.data)
-    source_id = data['source_id']
-    video_url = data['video_url']
-    vid = source_id + '.mp4'
-    update_status(db, 'fy_movie', source_id, 1) 
-    download(vid, video_url, trackers, domain)
-    update_status(db, 'fy_movie', source_id, 2) 
 
 def download_video(worker, job, trackers, domain, db):
     data = json.loads(job.data)
     source_id = data['source_id']
     video_url = data['video_url']
     vid = source_id + '.mp4'
-    update_status(db, 'fy_video', source_id, 1) 
+    update_status(db, source_id, 1) 
     download(vid, video_url, trackers, domain)
-    update_status(db, 'fy_video', source_id, 2) 
+    update_status(db, source_id, 2) 
+
+def download_movie(worker, job, trackers, domain, db):
+    download_video(worker, job, trackers, domain, db)
 
 def worker_wrapper(func, trackers, domain, db):
     def f(w, j):
