@@ -140,7 +140,7 @@ def main():
             help='mogilefs trackers ---- ip:port[,ip:port]')
     parser.add_option('--mog-video-domain', dest='video_domain', default='testdomain',
             help='mogilefs domain for video files')
-    parser.add_option('--mog-image-domain', dest='imgage_domain', default='testdomain',
+    parser.add_option('--mog-image-domain', dest='image_domain', default='testdomain',
             help='mogilefs domain for image files')
     
     parser.add_option('--db-host', dest='host', default='192.168.1.233',
@@ -156,8 +156,7 @@ def main():
 
     (options, args) = parser.parse_args()
 
-    if options.gs==None or options.trackers==None or options.worker==None or
-        options.video_domain==None or options.image_domain==None: 
+    if options.gs==None or options.trackers==None or options.worker==None or options.video_domain==None or options.image_domain==None: 
             parser.print_help()
             sys.exit()
 
