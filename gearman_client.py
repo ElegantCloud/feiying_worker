@@ -84,8 +84,8 @@ class SeriesTask(FeiyingTask):
     name = 'fy_series_download'
     sql = """
         SELECT v.source_id, v.title, v.image_url, s.release_date, s.origin, s.director, s.actor, s.episode_count
-        FROM fy_video AS v RIGHT JOIN fy_tv_series AS s USING(source_id) WHERE v.category='series'
-        AND v.status=0 AND s.episode_all=1 ORDER BY s.release_date DESC LIMIT ?"""
+        FROM fy_video AS v RIGHT JOIN fy_tv_series AS s USING(source_id) WHERE v.channel=2 AND v.status=0 
+        ORDER BY v.created_time DESC LIMIT ?"""
 
     def _parse(self, r):
         return {'source_id':r[0], 'title':r[1], 'image_url':r[2], 'release_date':r[3],
@@ -95,16 +95,19 @@ class SeriesTask(FeiyingTask):
 class UpdatingSeriesTask(SeriesTask):
     name = 'fy_updating_series_download'
     sql = """
-        SELECT v.source_id, v.title, v.image_url, s.release_date, s.origin, s.director, s.actor, s.episode_count
-        FROM fy_video AS v RIGHT JOIN fy_tv_series AS s USING(source_id) WHERE v.category='series'
-        AND v.status<2 AND s.episode_all=0 ORDER BY s.release_date DESC LIMIT ?"""
+        SELECT v.source_id, s.episode_count
+        FROM fy_video AS v RIGHT JOIN fy_tv_series AS s USING(source_id) WHERE v.channel=2 AND
+        v.status=2 AND s.episode_all=0 ORDER BY v.created_time DESC LIMIT ?"""
+
+    def _parse(self, r):
+        return {'source_id':r[0], 'episode_count':r[1]}
 
 class MovieTask(FeiyingTask):
     name = 'fy_movie_download'
     sql = """
         SELECT v.source_id, v.title, v.image_url, m.video_url, m.release_date, m.origin, m.director, m.actor
-        FROM fy_video AS v RIGHT JOIN fy_movie AS m USING(source_id) WHERE v.category='movie' AND v.status=0 
-        ORDER BY m.release_date DESC LIMIT ?"""
+        FROM fy_video AS v RIGHT JOIN fy_movie AS m USING(source_id) WHERE v.channel=1 AND v.status=0 
+        ORDER BY v.created_time DESC LIMIT ?"""
 
     def _parse(self, r):
         return {'source_id':r[0], 'title':r[1], 'image_url':r[2], 'video_url':r[3], 'release_date':r[4],
