@@ -32,6 +32,7 @@ def download(vid, url, trackers, domain):
 
     cmd = curl_cmd + ' | ' + mogupload_cmd
     result = os.system(cmd)
+    return result
 
 def get_episodes(source_id, db):
     sql = """
@@ -47,81 +48,106 @@ def get_episodes(source_id, db):
 def download_episode(db, source_id, index, url, trackers, domain):
     update_episode_status(db, source_id, index, 2)
     vid = source_id + '_' + str(index) + '.mp4'
-    download(vid, url, trackers, domain)
-    update_episode_status(db, source_id, index, 100)
+    r = download(vid, url, trackers, domain)
+    if r != 0:
+        update_episode_status(db, source_id, index, 4)
+    else:
+        update_episode_status(db, source_id, index, 100)
 
-def download_series(worker, data, trackers, domain, db):
+    return r
+
+def download_multi(data, trackers, domain, db):
     source_id = data['source_id']
     el = get_episodes(source_id, db)
     if el == None:
-        return
-
-    update_status(db, source_id, 2) 
-
-    for e in el:
-        url = e[0]
-        index = e[1]
-        download_episode(db, source_id, index, url, trackers, domain)
-
-    update_status(db, source_id, 100) 
-
-def download_updating_series(worker, data, trackers, domain, db):
-    source_id = data['source_id']
-    el = get_episodes(source_id, db)
-    if el == None:
-        return
-    
-    update_status(db, source_id, 102) # 102 
+        return 0
     
     for e in el:
         url = e[0]
         index = e[1]
-        download_episode(db, source_id, index, url, trackers, domain)
+        r = download_episode(db, source_id, index, url, trackers, domain)
+        if r != 0:
+            return (index, r)
 
-    update_status(db, source_id, 100) 
+    return len(el) 
 
-    count = data['episode_count']
-    sql = "UPDATE fy_tv_series SET episode_count=? WHERE source_id=?"
-    param = (count+len(el), source_id)
-    with db.cursor() as cursor:
-        cursor.execute(sql, param)
-
-
-def download_video(worker, data, trackers, video_domain, db):
+def download_single(data, trackers, video_domain, image_domain, db):
     source_id = data['source_id']
     video_url = data['video_url']
-    vid = source_id + '.mp4'
-    update_status(db, source_id, 2) 
-    download(vid, video_url, trackers, video_domain)
-    update_status(db, source_id, 100) 
-
-def download_movie(worker, data, trackers, video_domain, db):
-    download_video(worker, data, trackers, video_domain, db)
-
-def download_image(data, trackers, image_domain):
-    source_id = data['source_id']
     image_url = data['image_url']
+    
+    update_status(db, source_id, 2)
+
     pid = source_id + '.jpg'
-    download(pid, image_url, trackers, image_domain)
+    r = download(pid, image_url, trackers, image_domain)
+    if r != 0:
+        update_status(db, source_id, 3)
+        return r
+
+    vid = source_id + '.mp4'
+    r = download(vid, video_url, trackers, video_domain)
+    if r != 0:
+        update_status(db, source_id, 4)
+        return r
+    
+    update_status(db, source_id, 100)
+    return 0
 
 def func_video(worker, job, trackers, video_domain, image_domain, db):
     data = json.loads(job.data)
-    download_video(worker, data, trackers, video_domain, db)
-    download_image(data, trackers, image_domain)
+    r = download_single(data, trackers, video_domain, image_domain, db) 
+    if r == 0:
+        # index video
+        pass
 
 def func_movie(worker, job, trackers, video_domain, image_domain, db):
     data = json.loads(job.data)
-    download_movie(worker, data, trackers, video_domain, db)
-    download_image(data, trackers, image_domain)
+    r = download_single(data, trackers, video_domain, image_domain, db) 
+    if r == 0:
+        # index movie
+        pass
 
 def func_series(worker, job, trackers, video_domain, image_domain, db):
     data = json.loads(job.data)
-    download_series(worker, data, trackers, video_domain, db)
-    download_image(data, trackers, image_domain)
+    source_id = data['source_id']
+    image_url = data['image_url']
+
+    update_status(db, source_id, 2) #begin download
+    
+    pid = source_id + '.jpg'
+    r = download(pid, image_url, trackers, image_domain)
+    if r != 0:
+        update_status(db, source_id, 3) 
+        return r
+
+    r = download_multi(data, trackers, video_domain, db)
+    if not isinstance(r, int):
+        update_status(db, source_id, 4)
+        return r
+
+    update_status(db, source_id, 100) #download complete successfully
+
+    if r == 0:
+        # index series
+        pass
 
 def func_updating_series(worker, job, trackers, video_domain, image_domain, db):
     data = json.loads(job.data)
-    download_updating_series(worker, data, trackers, video_domain, db)
+    source_id = data['source_id']
+    
+    update_status(db, source_id, 102) # 102 begin download new episodes
+    r = download_multi(data, trackers, video_domain, db)
+    if not isinstance(r, int):
+        update_status(db, source_id, 104)
+        return r
+    else:
+        update_status(db, source_id, 100) #download complete successfully
+        count = data['episode_count']
+        sql = "UPDATE fy_tv_series SET episode_count=? WHERE source_id=?"
+        param = (count+r, source_id)
+        with db.cursor() as cursor:
+            cursor.execute(sql, param)
+        return 0
 
 def worker_wrapper(func, trackers, video_domain, image_domain,  db):
     def f(w, j):
