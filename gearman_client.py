@@ -83,32 +83,32 @@ class FeiyingTask(object):
 class SeriesTask(FeiyingTask):
     name = 'fy_series_download'
     sql = """
-        SELECT v.source_id, v.title, s.release_date, s.origin, s.director, s.actor, s.episode_count
+        SELECT v.source_id, v.title, v.image_url, s.release_date, s.origin, s.director, s.actor, s.episode_count
         FROM fy_video AS v RIGHT JOIN fy_tv_series AS s USING(source_id) WHERE v.category='series'
         AND v.status=0 AND s.episode_all=1 ORDER BY s.release_date DESC LIMIT ?"""
 
     def _parse(self, r):
-        return {'source_id':r[0], 'title':r[1], 'release_date':r[2],
-                'origin':r[3], 'director':r[4], 'actor':r[5], 'episode_count':r[6]}
+        return {'source_id':r[0], 'title':r[1], 'image_url':r[2], 'release_date':r[3],
+                'origin':r[4], 'director':r[5], 'actor':r[6], 'episode_count':r[7]}
 
 
 class UpdatingSeriesTask(SeriesTask):
     name = 'fy_updating_series_download'
     sql = """
-        SELECT v.source_id, v.title, s.release_date, s.origin, s.director, s.actor, s.episode_count
+        SELECT v.source_id, v.title, v.image_url, s.release_date, s.origin, s.director, s.actor, s.episode_count
         FROM fy_video AS v RIGHT JOIN fy_tv_series AS s USING(source_id) WHERE v.category='series'
         AND v.status<2 AND s.episode_all=0 ORDER BY s.release_date DESC LIMIT ?"""
 
 class MovieTask(FeiyingTask):
     name = 'fy_movie_download'
     sql = """
-        SELECT v.source_id, v.title, m.video_url, m.release_date, m.origin, m.director, m.actor
+        SELECT v.source_id, v.title, v.image_url, m.video_url, m.release_date, m.origin, m.director, m.actor
         FROM fy_video AS v RIGHT JOIN fy_movie AS m USING(source_id) WHERE v.category='movie' AND v.status=0 
         ORDER BY m.release_date DESC LIMIT ?"""
 
     def _parse(self, r):
-        return {'source_id':r[0], 'title':r[1], 'video_url':r[2], 'release_date':r[3],
-                'origin':r[4], 'director':r[5], 'actor':r[6]}
+        return {'source_id':r[0], 'title':r[1], 'image_url':r[2], 'video_url':r[3], 'release_date':r[4],
+                'origin':r[5], 'director':r[6], 'actor':r[7]}
 
 def main():
     parser = OptionParser()
