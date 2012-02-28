@@ -44,53 +44,88 @@ def get_episodes(source_id, db):
         rl = cursor.fetchall()
     return rl 
 
-def download_episodes(db, source_id, el, trackers, domain):
+def download_episode(db, source_id, index, url, trackers, domain):
+    update_episode_status(db, source_id, index, 2)
+    vid = source_id + '_' + str(index) + '.mp4'
+    download(vid, url, trackers, domain)
+    update_episode_status(db, source_id, index, 100)
+
+def download_series(worker, data, trackers, domain, db):
+    source_id = data['source_id']
+    el = get_episodes(source_id, db)
+    if el == None:
+        return
+
+    update_status(db, source_id, 2) 
+
     for e in el:
         url = e[0]
         index = e[1]
-        update_episode_status(db, source_id, index, 1)
-        vid = source_id + '_' + str(index) + '.mp4'
-        download(vid, url, trackers, domain)
-        update_episode_status(db, source_id, index, 2)
+        download_episode(db, source_id, index, url, trackers, domain)
 
-def download_series(worker, job, trackers, domain, db):
-    data = json.loads(job.data)
+    update_status(db, source_id, 100) 
+
+def download_updating_series(worker, data, trackers, domain, db):
     source_id = data['source_id']
     el = get_episodes(source_id, db)
     if el == None:
         return
-    update_status(db, source_id, 1) 
-    download_episodes(db, source_id, el, trackers, domain)
-    update_status(db, source_id, 2) 
+    
+    update_status(db, source_id, 102) # 102 
+    
+    for e in el:
+        url = e[0]
+        index = e[1]
+        download_episode(db, source_id, index, url, trackers, domain)
 
-def download_updating_series(worker, job, trackers, domain, db):
-    data = json.loads(job.data)
-    source_id = data['source_id']
-    el = get_episodes(source_id, db)
-    if el == None:
-        return
-    update_status(db, source_id, 1) 
-    download_episodes(db, source_id, el, trackers, domain)
+    update_status(db, source_id, 100) 
+
+    count = data['episode_count']
     sql = "UPDATE fy_tv_series SET episode_count=? WHERE source_id=?"
-    param = (len(el), source_id)
+    param = (count+len(el), source_id)
     with db.cursor() as cursor:
         cursor.execute(sql, param)
 
-def download_video(worker, job, trackers, domain, db):
-    data = json.loads(job.data)
+
+def download_video(worker, data, trackers, video_domain, db):
     source_id = data['source_id']
     video_url = data['video_url']
     vid = source_id + '.mp4'
-    update_status(db, source_id, 1) 
-    download(vid, video_url, trackers, domain)
     update_status(db, source_id, 2) 
+    download(vid, video_url, trackers, video_domain)
+    update_status(db, source_id, 100) 
 
-def download_movie(worker, job, trackers, domain, db):
-    download_video(worker, job, trackers, domain, db)
+def download_movie(worker, data, trackers, video_domain, db):
+    download_video(worker, data, trackers, video_domain, db)
 
-def worker_wrapper(func, trackers, domain, db):
+def download_image(data, trackers, image_domain):
+    source_id = data['source_id']
+    image_url = data['image_url']
+    pid = source_id + '.jpg'
+    download(pid, image_url, trackers, image_domain)
+
+def func_video(worker, job, trackers, video_domain, image_domain, db):
+    data = json.loads(job.data)
+    download_video(worker, data, trackers, video_domain, db)
+    download_image(data, trackers, image_domain)
+
+def func_movie(worker, job, trackers, video_domain, image_domain, db):
+    data = json.loads(job.data)
+    download_movie(worker, data, trackers, video_domain, db)
+    download_image(data, trackers, image_domain)
+
+def func_series(worker, job, trackers, video_domain, image_domain, db):
+    data = json.loads(job.data)
+    download_series(worker, data, trackers, video_domain, db)
+    download_image(data, trackers, image_domain)
+
+def func_updating_series(worker, job, trackers, video_domain, image_domain, db):
+    data = json.loads(job.data)
+    download_updating_series(worker, data, trackers, video_domain, db)
+
+def worker_wrapper(func, trackers, video_domain, image_domain,  db):
     def f(w, j):
-        func(w, j, trackers, domain, db)
+        func(w, j, trackers, video_domain, image_domain,  db)
         return 'OK'
     return f
     
@@ -103,8 +138,10 @@ def main():
             help='worker type: (movie|series|useries|video)')
     parser.add_option('-m', '--mogilefs-trackers', dest='trackers', default='192.168.1.233:7001', 
             help='mogilefs trackers ---- ip:port[,ip:port]')
-    parser.add_option('-d', '--mogilefs-domain', dest='domain', default='testdomain',
-            help='mogilefs domain')
+    parser.add_option('--mog-video-domain', dest='video_domain', default='testdomain',
+            help='mogilefs domain for video files')
+    parser.add_option('--mog-image-domain', dest='imgage_domain', default='testdomain',
+            help='mogilefs domain for image files')
     
     parser.add_option('--db-host', dest='host', default='192.168.1.233',
             help='database host')
@@ -119,15 +156,16 @@ def main():
 
     (options, args) = parser.parse_args()
 
-    if options.gs==None or options.trackers==None or options.worker==None or options.domain==None: 
-        parser.print_help()
-        sys.exit()
+    if options.gs==None or options.trackers==None or options.worker==None or
+        options.video_domain==None or options.image_domain==None: 
+            parser.print_help()
+            sys.exit()
 
     name_dict = {
-            'video':{'name':'fy_video_download', 'func':download_video},
-            'movie':{'name':'fy_movie_download', 'func':download_movie},
-            'series':{'name':'fy_series_download', 'func':download_series},
-            'useries':{'name':'fy_updating_series_download', 'func':download_updating_series}
+            'video':{'name':'fy_video_download', 'func':func_video},
+            'movie':{'name':'fy_movie_download', 'func':func_movie},
+            'series':{'name':'fy_series_download', 'func':func_series},
+            'useries':{'name':'fy_updating_series_download', 'func':func_updating_series}
         }
     
     item = name_dict[options.worker]
@@ -145,7 +183,8 @@ def main():
     gearman_worker = gearman.GearmanWorker([options.gs])
     gearman_worker.set_client_id(str(time.time()))
     gearman_worker.register_task(item['name'], 
-            worker_wrapper(item['func'], options.trackers, options.domain, db))
+            worker_wrapper(item['func'], options.trackers, options.video_domain,
+                options.image_domain, db))
     gearman_worker.work()
 
 if __name__ == '__main__':

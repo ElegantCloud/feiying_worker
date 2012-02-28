@@ -50,9 +50,10 @@ class FeiyingGearmanClient(object):
 
         datalist  = task.get_data_list(task.max_queued - queued)
         for data in datalist:
-            print data
-            self.client.submit_job(task.name, json.dumps(data), wait_until_complete=False,
+            job = self.client.submit_job(task.name, json.dumps(data), wait_until_complete=False,
                     background=True)
+            self.client.wait_until_jobs_accepted(job)
+            task.update_status(data)
 
 
 class FeiyingTask(object):
@@ -79,9 +80,18 @@ class FeiyingTask(object):
     def _parse(self, r):
         pass
 
+    def update_status(self, data):
+        source_id = data['source_id']
+        sql = """
+            UPDATE fy_video SET status=? WHERE source_id=?"""
+        param = (self.pending_status, source_id)
+        with self.db.cursor() as cursor:
+            cursor.execute(sql, param)
+
 
 class SeriesTask(FeiyingTask):
     name = 'fy_series_download'
+    pending_status = 1
     sql = """
         SELECT v.source_id, v.title, v.image_url, s.release_date, s.origin, s.director, s.actor, s.episode_count
         FROM fy_video AS v RIGHT JOIN fy_tv_series AS s USING(source_id) WHERE v.channel=2 AND v.status=0 
@@ -91,19 +101,24 @@ class SeriesTask(FeiyingTask):
         return {'source_id':r[0], 'title':r[1], 'image_url':r[2], 'release_date':r[3],
                 'origin':r[4], 'director':r[5], 'actor':r[6], 'episode_count':r[7]}
 
-
 class UpdatingSeriesTask(SeriesTask):
     name = 'fy_updating_series_download'
+    pending_status = 101
     sql = """
-        SELECT v.source_id, s.episode_count
-        FROM fy_video AS v RIGHT JOIN fy_tv_series AS s USING(source_id) WHERE v.channel=2 AND
-        v.status=2 AND s.episode_all=0 ORDER BY v.created_time DESC LIMIT ?"""
+        SELECT v.source_id, s.episode_count, s.episode_all
+        FROM fy_video AS v 
+        RIGHT JOIN fy_tv_series AS s USING(source_id)
+        LEFT JOIN fy_tv_episode AS e USING(source_id)
+        WHERE v.channel=2 AND v.status=200 AND s.episode_all=0 AND e.status=0
+        GROUP BY v.source_id
+        ORDER BY v.created_time DESC LIMIT ?"""
 
     def _parse(self, r):
-        return {'source_id':r[0], 'episode_count':r[1]}
+        return {'source_id':r[0], 'episode_count':r[1], 'episode_all':r[2]}
 
 class MovieTask(FeiyingTask):
     name = 'fy_movie_download'
+    pending_status = 1
     sql = """
         SELECT v.source_id, v.title, v.image_url, m.video_url, m.release_date, m.origin, m.director, m.actor
         FROM fy_video AS v RIGHT JOIN fy_movie AS m USING(source_id) WHERE v.channel=1 AND v.status=0 
