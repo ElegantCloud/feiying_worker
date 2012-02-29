@@ -50,10 +50,12 @@ class FeiyingGearmanClient(object):
 
         datalist  = task.get_data_list(task.max_queued - queued)
         for data in datalist:
+            print data
+            print '-------'
+            task.update_status(data)
             job = self.client.submit_job(task.name, json.dumps(data), wait_until_complete=False,
                     background=True)
-            self.client.wait_until_jobs_accepted(job)
-            task.update_status(data)
+            self.client.wait_until_jobs_accepted([job])
 
 
 class FeiyingTask(object):
@@ -128,6 +130,28 @@ class MovieTask(FeiyingTask):
         return {'source_id':r[0], 'title':r[1], 'image_url':r[2], 'video_url':r[3], 'release_date':r[4],
                 'origin':r[5], 'director':r[6], 'actor':r[7]}
 
+def schedule(gmclient, db, num):
+    sched = Scheduler()
+    sched.daemonic = False
+
+    @sched.cron_schedule(minute=00)
+    def movie_task():
+        task = MovieTask(db, num)
+        gmclient.submit_job(task)
+     
+    @sched.cron_schedule(minute=10)
+    def series_task():
+        task = SeriesTask(db, num)
+        gmclient.submit_job(task)
+    
+    @sched.cron_schedule(minute=40)
+    def useries_task():
+        task = UpdatingSeriesTask(db, num)
+        gmclient.submit_job(task)
+
+    sched.start()
+
+
 def main():
     parser = OptionParser()
     parser.add_option('-g', '--gearman-servers', dest='gs', default='192.168.1.233:4730',
@@ -150,8 +174,11 @@ def main():
             help='database user')
     parser.add_option('--db-password', dest='pwd', default='ivyinfo123',
             help='database password')
-    parser.add_option('--db-name', dest='db', default='feiying',
+    parser.add_option('--db-name', dest='db', default='feiying_new',
             help='database name')
+
+    parser.add_option('--schedule', dest='schedule_flag', action='store_true', default=False,
+            help='run client as scheduler')
 
     (options, args) = parser.parse_args()
     if options.gs==None:
@@ -168,16 +195,20 @@ def main():
         gmclient.dump_workers()
         sys.exit()
 
-    if options.task == None:
-        parser.print_help()
-        sys.exit()
-
     db = oursql.connect(
             host = options.host,
             port = options.port,
             user = options.user,
             passwd = options.pwd,
             db = options.db)
+
+    if options.schedule_flag:
+        schedule(gmclient, db, options.num)
+        sys.exit()
+
+    if options.task == None:
+        parser.print_help()
+        sys.exit()
 
     task = None
     if options.task == 'movie':
