@@ -93,21 +93,19 @@ def download_single(data, trackers, video_domain, image_domain, db):
     update_status(db, source_id, 100)
     return 0
 
-def func_video(worker, job, trackers, video_domain, image_domain, db):
+def func_video(worker, job, trackers, video_domain, image_domain, db, gmclient):
     data = json.loads(job.data)
     r = download_single(data, trackers, video_domain, image_domain, db) 
     if r == 0:
-        # index video
-        pass
+        gmclient.submit_job('fy_sphinx_index', job.data, wait_until_complete=False)
 
-def func_movie(worker, job, trackers, video_domain, image_domain, db):
+def func_movie(worker, job, trackers, video_domain, image_domain, db, gmclient):
     data = json.loads(job.data)
     r = download_single(data, trackers, video_domain, image_domain, db) 
     if r == 0:
-        # index movie
-        pass
+        gmclient.submit_job('fy_sphinx_index', job.data, wait_until_complete=False)
 
-def func_series(worker, job, trackers, video_domain, image_domain, db):
+def func_series(worker, job, trackers, video_domain, image_domain, db, gmclient):
     data = json.loads(job.data)
     source_id = data['source_id']
     image_url = data['image_url']
@@ -128,10 +126,9 @@ def func_series(worker, job, trackers, video_domain, image_domain, db):
     update_status(db, source_id, 100) #download complete successfully
 
     if r == 0:
-        # index series
-        pass
+        gmclient.submit_job('fy_sphinx_index', job.data, wait_until_complete=False)
 
-def func_updating_series(worker, job, trackers, video_domain, image_domain, db):
+def func_updating_series(worker, job, trackers, video_domain, image_domain, db, gmclient):
     data = json.loads(job.data)
     source_id = data['source_id']
     
@@ -149,9 +146,10 @@ def func_updating_series(worker, job, trackers, video_domain, image_domain, db):
             cursor.execute(sql, param)
         return 0
 
-def worker_wrapper(func, trackers, video_domain, image_domain,  db):
+
+def worker_wrapper(func, trackers, video_domain, image_domain, db, gmclient):
     def f(w, j):
-        func(w, j, trackers, video_domain, image_domain,  db)
+        func(w, j, trackers, video_domain, image_domain, db, gmclient)
         return 'OK'
     return f
     
@@ -205,11 +203,12 @@ def main():
             passwd = options.pwd,
             db = options.db)
 
+    gearman_client = gearman.client.GearmanClient([options.gs])
     gearman_worker = gearman.GearmanWorker([options.gs])
     gearman_worker.set_client_id(str(time.time()))
     gearman_worker.register_task(item['name'], 
             worker_wrapper(item['func'], options.trackers, options.video_domain,
-                options.image_domain, db))
+                options.image_domain, db, gearman_client))
     gearman_worker.work()
 
 if __name__ == '__main__':

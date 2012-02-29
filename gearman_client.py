@@ -95,13 +95,13 @@ class SeriesTask(FeiyingTask):
     name = 'fy_series_download'
     pending_status = 1
     sql = """
-        SELECT v.source_id, v.title, v.image_url, s.release_date, s.origin, s.director, s.actor, s.episode_count
+        SELECT v.source_id, v.title, v.channel, v.image_url, s.release_date, s.origin, s.director, s.actor, s.episode_count
         FROM fy_video AS v RIGHT JOIN fy_tv_series AS s USING(source_id) WHERE v.channel=2 AND v.status=0 
         ORDER BY v.created_time DESC LIMIT ?"""
 
     def _parse(self, r):
-        return {'source_id':r[0], 'title':r[1], 'image_url':r[2], 'release_date':r[3],
-                'origin':r[4], 'director':r[5], 'actor':r[6], 'episode_count':r[7]}
+        return {'source_id':r[0], 'title':r[1], 'channel':r[2], 'image_url':r[3], 'release_date':r[4],
+                'origin':r[5], 'director':r[6], 'actor':r[7], 'episode_count':r[8]}
 
 class UpdatingSeriesTask(SeriesTask):
     name = 'fy_updating_series_download'
@@ -122,13 +122,13 @@ class MovieTask(FeiyingTask):
     name = 'fy_movie_download'
     pending_status = 1
     sql = """
-        SELECT v.source_id, v.title, v.image_url, m.video_url, m.release_date, m.origin, m.director, m.actor
+        SELECT v.source_id, v.title, v.channel, v.image_url, m.video_url, m.release_date, m.origin, m.director, m.actor
         FROM fy_video AS v RIGHT JOIN fy_movie AS m USING(source_id) WHERE v.channel=1 AND v.status=0 
         ORDER BY v.created_time DESC LIMIT ?"""
 
     def _parse(self, r):
-        return {'source_id':r[0], 'title':r[1], 'image_url':r[2], 'video_url':r[3], 'release_date':r[4],
-                'origin':r[5], 'director':r[6], 'actor':r[7]}
+        return {'source_id':r[0], 'title':r[1], 'channel':r[2], 'image_url':r[3], 'video_url':r[4], 'release_date':r[5],
+                'origin':r[6], 'director':r[7], 'actor':r[8]}
 
 def schedule(gmclient, db, num):
     sched = Scheduler()
