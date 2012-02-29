@@ -175,7 +175,7 @@ def main():
             help='database user')
     parser.add_option('--db-password', dest='pwd', default='ivyinfo123',
             help='database password')
-    parser.add_option('--db-name', dest='db', default='feiying', 
+    parser.add_option('--db-name', dest='db', default='feiying_new', 
             help='database name')
 
     (options, args) = parser.parse_args()
