@@ -72,6 +72,7 @@ def short_video_index(data, conn):
             data['size'],
             data['image_url'],
             data['video_url'])
+    print 'sql = ', sql
     with conn.cursor() as cursor:
         cursor.execute(sql, plain_query=True)
         return 0
