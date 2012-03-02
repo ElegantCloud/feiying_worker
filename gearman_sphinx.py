@@ -69,7 +69,7 @@ def short_video_index(data, conn):
             data['title'],
             data['source_id'],
             data['time'],
-            date['size'],
+            data['size'],
             data['image_url'],
             data['video_url'])
     with conn.cursor() as cursor:

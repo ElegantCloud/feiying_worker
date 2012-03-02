@@ -93,6 +93,7 @@ class FeiyingTask(object):
 
 class SeriesTask(FeiyingTask):
     name = 'fy_series_download'
+    #name = 'fy_sphinx_index'
     pending_status = 1
     sql = """
         SELECT v.source_id, v.title, v.channel, v.image_url, s.release_date, s.origin, s.director, s.actor, s.episode_count
@@ -120,6 +121,7 @@ class UpdatingSeriesTask(SeriesTask):
 
 class MovieTask(FeiyingTask):
     name = 'fy_movie_download'
+    #name = 'fy_sphinx_index'
     pending_status = 1
     sql = """
         SELECT v.source_id, v.title, v.channel, v.image_url, m.video_url, m.release_date, m.origin, m.director, m.actor

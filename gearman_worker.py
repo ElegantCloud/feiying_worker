@@ -97,13 +97,17 @@ def func_video(worker, job, trackers, video_domain, image_domain, db, gmclient):
     data = json.loads(job.data)
     r = download_single(data, trackers, video_domain, image_domain, db) 
     if r == 0:
-        gmclient.submit_job('fy_sphinx_index', job.data, wait_until_complete=False)
+        req = gmclient.submit_job('fy_sphinx_index', job.data, wait_until_complete=False,
+                background=True)
+        gmclient.wait_until_jobs_accepted([req])
 
 def func_movie(worker, job, trackers, video_domain, image_domain, db, gmclient):
     data = json.loads(job.data)
     r = download_single(data, trackers, video_domain, image_domain, db) 
     if r == 0:
-        gmclient.submit_job('fy_sphinx_index', job.data, wait_until_complete=False)
+        req = gmclient.submit_job('fy_sphinx_index', job.data, wait_until_complete=False,
+                background=True)
+        gmclient.wait_until_jobs_accepted([req])
 
 def func_series(worker, job, trackers, video_domain, image_domain, db, gmclient):
     data = json.loads(job.data)
@@ -126,7 +130,9 @@ def func_series(worker, job, trackers, video_domain, image_domain, db, gmclient)
     update_status(db, source_id, 100) #download complete successfully
 
     if r == 0:
-        gmclient.submit_job('fy_sphinx_index', job.data, wait_until_complete=False)
+        req = gmclient.submit_job('fy_sphinx_index', job.data, wait_until_complete=False,
+                background=True)
+        gmclient.wait_until_jobs_accepted([req])
 
 def func_updating_series(worker, job, trackers, video_domain, image_domain, db, gmclient):
     data = json.loads(job.data)
