@@ -226,8 +226,10 @@ class BaseWorker(object):
         source_id = data['source_id']
         el = self._get_episodes(source_id)
         if el == None:
+            self.logger.info('series %s has not any episodes for download', source_id)
             return 0
     
+        self.logger.info('series %s has %d episodes for download', source_id, len(el))
         for e in el:
             url = e[0]
             index = e[1]
@@ -275,7 +277,7 @@ class BaseWorker(object):
             rl = cursor.fetchall()
         return rl 
 
-    def _download_episode(source_id, index, url, domain):
+    def _download_episode(self, source_id, index, url, domain):
         self._update_episode_status(source_id, index, 2)
         vid = source_id + '_' + str(index) + '.mp4'
         r = self._download(vid, url, domain)

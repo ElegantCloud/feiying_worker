@@ -112,7 +112,7 @@ class UpdatingSeriesTask(SeriesTask):
         FROM fy_video AS v 
         RIGHT JOIN fy_tv_series AS s USING(source_id)
         LEFT JOIN fy_tv_episode AS e USING(source_id)
-        WHERE v.channel=2 AND v.status=200 AND s.episode_all=0 AND e.status=0
+        WHERE v.channel=2 AND v.status=100 AND s.episode_all=0 AND e.status=0
         GROUP BY v.source_id
         ORDER BY v.created_time DESC LIMIT ?"""
 
