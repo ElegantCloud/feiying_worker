@@ -28,15 +28,15 @@ def main():
     def crawl_youku_video():
         os.system(cmd + 'youku_video')
 
-    @sched.cron_schedule(minute=40)
+    @sched.cron_schedule(minute=30)
     def crawl_tudou_video():
         os.system(cmd + 'tudou_video')
 
-    @sched.cron_schedule(hour=11, minute=39)
+    @sched.cron_schedule(hour=11, minute=25)
     def crawl_letv_movie():
         os.system(cmd + 'letv_movie')
              
-    @sched.cron_schedule(hour=16, minute=48)
+    @sched.cron_schedule(hour=12, minute=25)
     def crawl_letv_series():
         os.system(cmd + 'letv_series')
 
