@@ -2,12 +2,22 @@
 
 import gearman
 import json
+import logging
+import logging.handlers
 import oursql
 import time
 from optparse import OptionParser
 
+logger = logging.getLogger('fy_sphinx')
+logger.setLevel(logging.DEBUG)
+l_handler = logging.handlers.TimedRotatingFileHandler('fy_sphinx.log', when='midnight')
+l_handler.setLevel(logging.DEBUG)
+l_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
+l_handler.setFormatter(l_formatter)
+logger.addHandler(l_handler)
 
 def get_next_id(conn, index_name):
+    global logger
     sql = "SELECT @id as mid FROM %s ORDER BY @id DESC LIMIT 1" % index_name
     with conn.cursor() as cursor:
         cursor.execute(sql, plain_query=True)
@@ -18,6 +28,7 @@ def get_next_id(conn, index_name):
             return r[2]+1
     
 def movie_index(data, conn):
+    global logger
     index_name = 'fy_movie'
     nid = get_next_id(conn, index_name)
     sql = """INSERT INTO %s (id, channel, title, director, actor, source_id, origin, release_date,
@@ -39,6 +50,7 @@ def movie_index(data, conn):
     return 1
 
 def series_index(data, conn):
+    global logger
     index_name = 'fy_series'
     nid = get_next_id(conn, index_name)
     sql = """INSERT INTO %s (id, channel, title, director, actor, source_id, origin, release_date,
@@ -59,8 +71,11 @@ def series_index(data, conn):
     return 1
 
 def short_video_index(data, conn):
+    global logger
     index_name = 'fy_short_video'
+    logger.debug(index_name)
     nid = get_next_id(conn, index_name)
+    logger.debug("%s nid=%d", index_name, nid)
     sql = """INSERT INTO %s (id, channel, title, source_id, time, size, image_url, video_url)
             VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s')""" % (
             index_name,
@@ -72,15 +87,17 @@ def short_video_index(data, conn):
             data['size'],
             data['image_url'],
             data['video_url'])
-    print 'sql = ', sql
     with conn.cursor() as cursor:
         cursor.execute(sql, plain_query=True)
         return 0
+    logger.error('INSERT %s Error', index_name)
     return 1
 
 
 def func_sphinx(worker, job, conn):
+    global logger
     data = json.loads(job.data)
+    logger.debug(data)
     channel = data['channel']
     if channel == 1: #movie
         return movie_index(data, conn)
@@ -89,9 +106,11 @@ def func_sphinx(worker, job, conn):
     else: # short video
         return short_video_index(data, conn)
 
-def func_wrapper(conn, func):
+def func_wrapper(func, options):
     def f(worker, job):
-        return str(func(worker, job, conn))
+        conn = oursql.connect(host=options.host, port=options.port, charset='utf8') 
+        func(worker, job, conn)
+        return 'ok'
     return f
 
 
@@ -110,10 +129,9 @@ def main():
         parser.print_help()
         sys.exit()
 
-    sphinx = oursql.connect(host=options.host, port=options.port, charset='utf8')
     gearman_worker = gearman.GearmanWorker([options.gs])
     gearman_worker.set_client_id('sphinx_index_' + str(time.time()))
-    gearman_worker.register_task('fy_sphinx_index', func_wrapper(sphinx, func_sphinx))
+    gearman_worker.register_task('fy_sphinx_index', func_wrapper(func_sphinx, options))
     gearman_worker.work()
 
 if __name__ == '__main__':

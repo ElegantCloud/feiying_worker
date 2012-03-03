@@ -1,8 +1,10 @@
+
 # gearman_worker.py
 
 import gearman
 import json
 import logging
+import logging.handlers
 import time
 import oursql
 import os
@@ -154,13 +156,200 @@ def func_updating_series(worker, job, trackers, video_domain, image_domain, db, 
             cursor.execute(sql, param)
         return 0
 
+class BaseWorker(object):
 
-def worker_wrapper(func, trackers, video_domain, image_domain, db, gmclient):
-    def f(w, j):
-        func(w, j, trackers, video_domain, image_domain, db, gmclient)
-        return 'OK'
-    return f
+    name = 'fy_base_worker'
+
+    def __init__(self, opts):
+        self.logger = logging.getLogger(self.name)
+        self.logger.setLevel(logging.DEBUG)
+
+        lh = logging.handlers.TimedRotatingFileHandler(self.name+'.log', when='midnight')
+        lh.setLevel(logging.DEBUG)
+
+        lf = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
+        lh.setFormatter(lf)
+
+        self.logger.addHandler(lh)
+
+        self.opts = opts
+        
+        self.db = oursql.connect(
+            host = opts.host,
+            port = opts.port,
+            user = opts.user,
+            passwd = opts.pwd,
+            db = opts.db)
+
+        self.gmclient = gearman.client.GearmanClient([opts.gs])
+        
+        self.logger.info('create instance %s', self.name)
+
+    def work(self):
+        self.gmworker = gearman.GearmanWorker([self.opts.gs])
+        self.gmworker.register_task(self.name, self.job_func(self))
+        self.gmworker.work()
+
+    @classmethod
+    def job_func(cls, self):
+        def f(w, j):
+            self.do_work(w, j)
+            return 'ok'
+        return f
+
+    def do_work(self, w, j):
+        pass
+
+    def _download_single(self, data):
+        source_id = data['source_id']
+        video_url = data['video_url']
+        image_url = data['image_url']
+
+        self._update_status(source_id, 2)
+
+        pid = source_id + '.jpg'
+        r = self._download(pid, image_url, self.opts.image_domain)
+        if r != 0:
+            self._update_status(source_id, 3)
+            return r
+
+        vid = source_id + '.mp4'
+        r = self._download(vid, video_url, self.opts.video_domain)
+        if r != 0:
+            self._update_status(source_id, 4)
+            return r
     
+        self._update_status(source_id, 100)
+        return 0
+
+    def _download_multi(self, data, domain):
+        source_id = data['source_id']
+        el = self._get_episodes(source_id)
+        if el == None:
+            return 0
+    
+        for e in el:
+            url = e[0]
+            index = e[1]
+            r = self._download_episode(source_id, index, url, domain)
+            self.logger.info('download series %s episode %d result=%d', source_id, index, r)
+            if r != 0:
+                return (index, r)
+
+        return len(el) 
+    
+    def _update_status(self, source_id, status):
+        sql = """ UPDATE fy_video SET status=? WHERE source_id=? """ 
+        param = (status, source_id)
+        with self.db.cursor() as cursor:
+            cursor.execute(sql, param)
+
+    def _update_episode_status(self, source_id, index, status):
+        sql = "UPDATE fy_tv_episode SET status=? WHERE source_id=? AND episode_index=?" 
+        param = (status, source_id, index)
+        with self.db.cursor() as cursor:
+            cursor.execute(sql, param)
+
+    def _download(self, fid, url, domain):
+        parsed_url = urlparse.urlparse(url)
+        query_list = urlparse.parse_qsl(parsed_url.query)
+        curl_cmd = 'curl -G -L ' + parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path
+        for q in query_list:
+            curl_cmd += ' -d ' + q[0] + '=' + q[1]
+
+        trackers = self.opts.trackers
+        mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='-'" % (trackers, domain, fid)
+
+        cmd = curl_cmd + ' | ' + mogupload_cmd
+        result = os.system(cmd)
+        return result
+
+    def _get_episodes(self, source_id):
+        sql = """
+            SELECT video_url, episode_index FROM fy_tv_episode WHERE source_id=? AND status=0 ORDER BY
+            episode_index"""
+        param = (source_id,)
+        rl = None
+        with self.db.cursor() as cursor:
+            cursor.execute(sql, param)
+            rl = cursor.fetchall()
+        return rl 
+
+    def _download_episode(source_id, index, url, domain):
+        self._update_episode_status(source_id, index, 2)
+        vid = source_id + '_' + str(index) + '.mp4'
+        r = self._download(vid, url, domain)
+        if r != 0:
+            self._update_episode_status(source_id, index, 4)
+        else:
+            self._update_episode_status(source_id, index, 100)
+        return r
+
+class VideoWorker(BaseWorker):
+    name = 'fy_video_download'
+    def do_work(self, w, j):
+        data = json.loads(j.data)
+        r = self._download_single(data) 
+        self.logger.info('download %s result=%d', data['source_id'], r)
+        if r == 0:
+            req = self.gmclient.submit_job('fy_sphinx_index', j.data, wait_until_complete=False,
+                background=True)
+            self.gmclient.wait_until_jobs_accepted([req])
+
+class MovieWorker(VideoWorker):
+    name = 'fy_movie_download'
+
+class SeriesWorker(BaseWorker):
+    name = 'fy_series_download'
+    def do_work(self, w, j):
+        data = json.loads(j.data)
+        source_id = data['source_id']
+        image_url = data['image_url']
+
+        self.logger.info('download series %s', source_id)
+        self._update_status(source_id, 2) #begin download
+    
+        pid = source_id + '.jpg'
+        r = self._download(pid, image_url, self.opts.image_domain)
+        if r != 0:
+            self._update_status(source_id, 3) 
+            self.logger.error('download %s image error %d', source_id, r)
+            return r
+
+        r = self._download_multi(data, self.opts.video_domain)
+        if not isinstance(r, int):
+            self._update_status(source_id, 4)
+            return r
+
+        self._update_status(source_id, 100) #download complete successfully
+
+        if r == 0:
+            req = self.gmclient.submit_job('fy_sphinx_index', j.data, wait_until_complete=False,
+                    background=True)
+            self.gmclient.wait_until_jobs_accepted([req])
+
+class UpdatingSeriesWorker(BaseWorker):
+    name = 'fy_updating_series_download'
+    def do_work(self, w, j):
+        data = json.loads(j.data)
+        source_id = data['source_id']
+
+        self.logger.info('download updating series %s', source_id)
+    
+        self._update_status(source_id, 102) # 102 begin download new episodes
+        r = self._download_multi(data, self.opts.video_domain)
+        if not isinstance(r, int):
+            self._update_status(source_id, 104)
+            return r
+        else:
+            self._update_status(source_id, 100) #download complete successfully
+            count = data['episode_count']
+            sql = "UPDATE fy_tv_series SET episode_count=? WHERE source_id=?"
+            param = (count+r, source_id)
+            with self.db.cursor() as cursor:
+                cursor.execute(sql, param)
+            return 0
+
 
 def main():
     parser = OptionParser()
@@ -192,32 +381,20 @@ def main():
             parser.print_help()
             sys.exit()
 
-    name_dict = {
-            'video':{'name':'fy_video_download', 'func':func_video},
-            'movie':{'name':'fy_movie_download', 'func':func_movie},
-            'series':{'name':'fy_series_download', 'func':func_series},
-            'useries':{'name':'fy_updating_series_download', 'func':func_updating_series}
+    worker_dict = {'video':'VideoWorker', 
+        'movie':'MovieWorker',
+        'series':'SeriesWorker',
+        'useries':'UpdatingSeriesWorker'
         }
-    
-    item = name_dict[options.worker]
-    if item == None:
+
+    class_name = worker_dict[options.worker]
+    if class_name == None:
         print 'The value of -w should be (movie|series|useries|video)'
         sys.exit()
-
-    db = oursql.connect(
-            host = options.host,
-            port = options.port,
-            user = options.user,
-            passwd = options.pwd,
-            db = options.db)
-
-    gearman_client = gearman.client.GearmanClient([options.gs])
-    gearman_worker = gearman.GearmanWorker([options.gs])
-    gearman_worker.set_client_id(str(time.time()))
-    gearman_worker.register_task(item['name'], 
-            worker_wrapper(item['func'], options.trackers, options.video_domain,
-                options.image_domain, db, gearman_client))
-    gearman_worker.work()
+    else:
+        worker_constructor = globals()[class_name]
+        worker = worker_constructor(options)
+        worker.work()
 
 if __name__ == '__main__':
     main()
