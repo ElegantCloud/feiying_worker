@@ -2,12 +2,14 @@
 
 import gearman
 import json
+import logging
 import time
 import oursql
 import os
 import sys
 import urlparse
 from optparse import OptionParser
+
 
 def update_status(db, source_id, status):
     sql = """ UPDATE fy_video SET status=? WHERE source_id=? """ 
