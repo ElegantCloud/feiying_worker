@@ -328,6 +328,9 @@ class SeriesWorker(BaseWorker):
             req = self.gmclient.submit_job('fy_sphinx_index', j.data, wait_until_complete=False,
                     background=True)
             self.gmclient.wait_until_jobs_accepted([req])
+        else: # r<=0
+            self._update_status(source_id, 0) #download nothing
+            
 
 class UpdatingSeriesWorker(BaseWorker):
     name = 'fy_updating_series_download'
