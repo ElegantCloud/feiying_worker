@@ -323,9 +323,8 @@ class SeriesWorker(BaseWorker):
             self._update_status(source_id, 4)
             return r
 
-        self._update_status(source_id, 100) #download complete successfully
-
-        if r == 0:
+        if r > 0: # r is the episode count just downloaded
+            self._update_status(source_id, 100) #download complete successfully
             req = self.gmclient.submit_job('fy_sphinx_index', j.data, wait_until_complete=False,
                     background=True)
             self.gmclient.wait_until_jobs_accepted([req])
