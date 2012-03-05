@@ -29,7 +29,7 @@ def get_next_id(conn, index_name):
     
 def movie_index(data, conn):
     global logger
-    index_name = 'fy_movie'
+    index_name = 'feiying_rt'
     nid = get_next_id(conn, index_name)
     sql = """INSERT INTO %s (id, channel, title, director, actor, source_id, origin, release_date,
             image_url, video_url) VALUES (%d, %d,'%s','%s','%s','%s','%s','%s','%s','%s')""" % (
@@ -51,7 +51,7 @@ def movie_index(data, conn):
 
 def series_index(data, conn):
     global logger
-    index_name = 'fy_series'
+    index_name = 'feiying_rt'
     nid = get_next_id(conn, index_name)
     sql = """INSERT INTO %s (id, channel, title, director, actor, source_id, origin, release_date,
             image_url) VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s')""" % (
@@ -72,7 +72,7 @@ def series_index(data, conn):
 
 def short_video_index(data, conn):
     global logger
-    index_name = 'fy_short_video'
+    index_name = 'feiying_rt'
     logger.debug(index_name)
     nid = get_next_id(conn, index_name)
     logger.debug("%s nid=%d", index_name, nid)
