@@ -156,7 +156,7 @@ def schedule(gmclient, db, num):
 
 def main():
     parser = OptionParser()
-    parser.add_option('-g', '--gearman-servers', dest='gs', default='192.168.1.233:4730',
+    parser.add_option('-g', '--gearman-servers', dest='gs', default='gearman-server-1:4730',
             help='gearman server list')
     parser.add_option('-t', '--task', dest='task', 
             help='gearman task name: (movie|series|useries)')
@@ -168,15 +168,15 @@ def main():
     parser.add_option('--workers', dest='worker_flag', action='store_true', default=False,
             help='show gearman worker status')
 
-    parser.add_option('--db-host', dest='host', default='192.168.1.233',
+    parser.add_option('--db-host', dest='host', default='mysql-server',
             help='database host')
     parser.add_option('--db-port', dest='port', default=3306, type='int',
             help='database port')
-    parser.add_option('--db-user', dest='user', default='futuom',
+    parser.add_option('--db-user', dest='user', default='feiying',
             help='database user')
-    parser.add_option('--db-password', dest='pwd', default='ivyinfo123',
+    parser.add_option('--db-password', dest='pwd', default='feiying123',
             help='database password')
-    parser.add_option('--db-name', dest='db', default='feiying_new',
+    parser.add_option('--db-name', dest='db', default='feiying',
             help='database name')
 
     parser.add_option('--schedule', dest='schedule_flag', action='store_true', default=False,
@@ -187,7 +187,7 @@ def main():
         parser.print_help()
         sys.exit()
 
-    gmclient = FeiyingGearmanClient([options.gs])
+    gmclient = FeiyingGearmanClient(options.gs.split(','))
 
     if options.status_flag:
         gmclient.dump_status()

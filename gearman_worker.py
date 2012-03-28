@@ -20,7 +20,7 @@ class BaseWorker(object):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(logging.DEBUG)
 
-        lh = logging.handlers.TimedRotatingFileHandler(self.name+'.log', when='midnight')
+        lh = logging.handlers.TimedRotatingFileHandler('/tmp/'+self.name+'.log', when='midnight')
         lh.setLevel(logging.DEBUG)
 
         lf = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
@@ -37,12 +37,13 @@ class BaseWorker(object):
             passwd = opts.pwd,
             db = opts.db)
 
-        self.gmclient = gearman.client.GearmanClient([opts.gs])
+        self.gm_host_list = opts.gs.split(',')
+        self.gmclient = gearman.client.GearmanClient(self.gm_host_list)
         
         self.logger.info('create instance %s', self.name)
 
     def work(self):
-        self.gmworker = gearman.GearmanWorker([self.opts.gs])
+        self.gmworker = gearman.GearmanWorker(self.gm_host_list)
         self.gmworker.register_task(self.name, self.job_func(self))
         self.gmworker.work()
 
@@ -213,26 +214,26 @@ class UpdatingSeriesWorker(BaseWorker):
 
 def main():
     parser = OptionParser()
-    parser.add_option('-g', '--gearman-servers', dest='gs', default='192.168.1.233:4730',
+    parser.add_option('-g', '--gearman-servers', dest='gs', default='gearman-server-1:4730,gearman-server-2:4730',
             help='gearman server list')
     parser.add_option('-w', '--worker-type', dest='worker', 
             help='worker type: (movie|series|useries|video)')
-    parser.add_option('-m', '--mogilefs-trackers', dest='trackers', default='192.168.1.233:7001', 
+    parser.add_option('-m', '--mogilefs-trackers', dest='trackers', default='mogile-tracker-1:7001,mogile-tracker-2:7001', 
             help='mogilefs trackers ---- ip:port[,ip:port]')
-    parser.add_option('--mog-video-domain', dest='video_domain', default='testdomain',
+    parser.add_option('--mog-video-domain', dest='video_domain', default='fydomain',
             help='mogilefs domain for video files')
-    parser.add_option('--mog-image-domain', dest='image_domain', default='testdomain',
+    parser.add_option('--mog-image-domain', dest='image_domain', default='fydomain',
             help='mogilefs domain for image files')
     
-    parser.add_option('--db-host', dest='host', default='192.168.1.233',
+    parser.add_option('--db-host', dest='host', default='mysql-server',
             help='database host')
     parser.add_option('--db-port', dest='port', default=3306, type='int',
             help='database port')
-    parser.add_option('--db-user', dest='user', default='futuom',
+    parser.add_option('--db-user', dest='user', default='feiying',
             help='database user')
-    parser.add_option('--db-password', dest='pwd', default='ivyinfo123',
+    parser.add_option('--db-password', dest='pwd', default='feiying123',
             help='database password')
-    parser.add_option('--db-name', dest='db', default='feiying_new', 
+    parser.add_option('--db-name', dest='db', default='feiying', 
             help='database name')
 
     (options, args) = parser.parse_args()

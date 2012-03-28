@@ -10,7 +10,7 @@ from optparse import OptionParser
 
 logger = logging.getLogger('fy_sphinx')
 logger.setLevel(logging.DEBUG)
-l_handler = logging.handlers.TimedRotatingFileHandler('fy_sphinx.log', when='midnight')
+l_handler = logging.handlers.TimedRotatingFileHandler('/tmp/fy_sphinx.log', when='midnight')
 l_handler.setLevel(logging.DEBUG)
 l_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
 l_handler.setFormatter(l_formatter)
@@ -116,10 +116,10 @@ def func_wrapper(func, options):
 
 def main():
     parser = OptionParser()
-    parser.add_option('-g', '--gearman-servers', dest='gs', default='192.168.1.233:4730',
+    parser.add_option('-g', '--gearman-servers', dest='gs', default='gearman-server-1:4730,gearman-server-2:4730',
             help='gearman server list')
     
-    parser.add_option('--sphinx-host', dest='host', default='192.168.1.113',
+    parser.add_option('--sphinx-host', dest='host', default='sphinx-server',
             help='sphinx host')
     parser.add_option('--sphinx-port', dest='port', default=9306, type='int',
             help='sphinx port')
@@ -129,7 +129,7 @@ def main():
         parser.print_help()
         sys.exit()
 
-    gearman_worker = gearman.GearmanWorker([options.gs])
+    gearman_worker = gearman.GearmanWorker(options.gs.split(','))
     gearman_worker.set_client_id('sphinx_index_' + str(time.time()))
     gearman_worker.register_task('fy_sphinx_index', func_wrapper(func_sphinx, options))
     gearman_worker.work()
