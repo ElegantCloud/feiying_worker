@@ -18,7 +18,8 @@ logger.addHandler(l_handler)
 
 def get_next_id(conn, index_name):
     global logger
-    sql = "SELECT @id as mid FROM %s ORDER BY @id DESC LIMIT 1" % index_name
+    #sql = "SELECT @id as mid FROM %s ORDER BY @id DESC LIMIT 1" % index_name
+    sql = "SELECT id as mid FROM %s ORDER BY id DESC LIMIT 1" % index_name # the '@' symble is unnecessary for sphinx2.0
     with conn.cursor() as cursor:
         cursor.execute(sql, plain_query=True)
         r = cursor.fetchone()
