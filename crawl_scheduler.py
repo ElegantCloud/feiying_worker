@@ -8,7 +8,7 @@ from apscheduler.scheduler import Scheduler
 
 def main():
     parser = OptionParser()
-    parser.add_option('--scrapyd', dest='scrapyd', default='192.168.1.233:6800',
+    parser.add_option('--scrapyd', dest='scrapyd', default='scrapy-server:6800',
             help='scrapyd url')
     parser.add_option('--project', dest='project', default='feiying',
             help='scrapy project name')
