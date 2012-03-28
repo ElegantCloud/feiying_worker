@@ -24,11 +24,11 @@ def main():
     sched = Scheduler()
     sched.daemonic = False
 
-    @sched.cron_schedule(minute=20)
+    @sched.cron_schedule(hour='0-23/2', minute=20)
     def crawl_youku_video():
         os.system(cmd + 'youku_video')
 
-    @sched.cron_schedule(minute=30)
+    @sched.cron_schedule(hour='0-23/2', minute=30)
     def crawl_tudou_video():
         os.system(cmd + 'tudou_video')
 
@@ -36,7 +36,7 @@ def main():
     def crawl_letv_movie():
         os.system(cmd + 'letv_movie')
              
-    @sched.cron_schedule(hour=12, minute=25)
+    @sched.cron_schedule(hour=21, minute=25)
     def crawl_letv_series():
         os.system(cmd + 'letv_series')
 
