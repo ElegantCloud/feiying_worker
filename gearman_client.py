@@ -10,7 +10,11 @@ from apscheduler.scheduler import Scheduler
 
 class FeiyingGearmanClient(object):
     def __init__(self, host_list):
-        self.admin_client = gearman.admin_client.GearmanAdminClient(host_list)
+        self.admin_client_map = {}
+        for h in host_list:
+            ac = gearman.admin_client.GearmanAdminClient([h])
+            self.admin_client_map[h] = ac
+#        self.admin_client = gearman.admin_client.GearmanAdminClient(host_list)
         self.client = gearman.client.GearmanClient(host_list)
 
     def _dump(self, li):
@@ -18,34 +22,45 @@ class FeiyingGearmanClient(object):
             print i
             
     def dump_status(self):
-        self._dump(self.admin_client.get_status())
+        for h, ac in self.admin_client_map.items():
+            print h
+	    self._dump(ac.get_status())
 
     def dump_workers(self):
-        self._dump(self.admin_client.get_workers())
+        for h, ac in self.admin_client_map.items():
+            print h
+            self._dump(ac.get_workers())
 
-    def get_queued_num(self, task_name):
-        return self._get_property(task_name, 'queued')
+    def get_queued_num(self, ac, task_name):
+        return self._get_property(ac, task_name, 'queued')
 
-    def get_running_num(self, task_name):
-        return self._get_property(task_name, 'running')
+    def get_running_num(self, ac, task_name):
+        return self._get_property(ac, task_name, 'running')
 
-    def _get_task(self, task_name):
-        status = self.admin_client.get_status()
+    def _get_task(self, ac, task_name):
+        status = ac.get_status()
         for s in status:
             if s['task'] == task_name:
                 return s
 
-    def _get_property(self, task_name, prop_name):
-        t = self._get_task(task_name)
+    def _get_property(self, ac, task_name, prop_name):
+        t = self._get_task(ac, task_name)
         return t[prop_name] if t else None
 
     def submit_job(self, task):
-        queued = self.get_queued_num(task.name)
-        if None == queued:
-            print 'ERROR: None == queued'
-            return
-        if queued >= task.max_queued:
-            print 'WARNING: max queued'
+        queued = None
+        for h, ac in self.admin_client_map.items():
+            queued = self.get_queued_num(ac, task.name)
+            if None == queued:
+                print 'ERROR: None == queued'
+                continue
+            if queued < task.max_queued:
+                break
+            else:
+                continue
+ 
+        if queued == None or queued >= task.max_queued:
+            print 'ERROR: queued = ', queued
             return
 
         datalist  = task.get_data_list(task.max_queued - queued)
@@ -156,7 +171,7 @@ def schedule(gmclient, db, num):
 
 def main():
     parser = OptionParser()
-    parser.add_option('-g', '--gearman-servers', dest='gs', default='gearman-server-1:4730',
+    parser.add_option('-g', '--gearman-servers', dest='gs', default='gearman-server-1:4730,gearman-server-2:4730',
             help='gearman server list')
     parser.add_option('-t', '--task', dest='task', 
             help='gearman task name: (movie|series|useries)')

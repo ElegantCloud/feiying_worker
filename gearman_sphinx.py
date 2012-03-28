@@ -111,6 +111,7 @@ def func_wrapper(func, options):
     def f(worker, job):
         conn = oursql.connect(host=options.host, port=options.port, charset='utf8') 
         func(worker, job, conn)
+        conn.close()
         return 'ok'
     return f
 
