@@ -29,14 +29,7 @@ class BaseWorker(object):
         self.logger.addHandler(lh)
 
         self.opts = opts
-        
-        self.db = oursql.connect(
-            host = opts.host,
-            port = opts.port,
-            user = opts.user,
-            passwd = opts.pwd,
-            db = opts.db)
-
+       
         self.gm_host_list = opts.gs.split(',')
         self.gmclient = gearman.client.GearmanClient(self.gm_host_list)
         
@@ -50,9 +43,19 @@ class BaseWorker(object):
     @classmethod
     def job_func(cls, self):
         def f(w, j):
-            self.do_work(w, j)
+            self._base_do_work(w, j)
             return 'ok'
         return f
+
+    def _base_do_work(self, w, j):
+	self.db = oursql.connect(
+            host = self.opts.host,
+            port = self.opts.port,
+            user = self.opts.user,
+            passwd = self.opts.pwd,
+            db = self.opts.db)
+	self.do_work(w, j)	
+	self.db.close()
 
     def do_work(self, w, j):
         pass
@@ -112,15 +115,17 @@ class BaseWorker(object):
     def _download(self, fid, url, domain):
         parsed_url = urlparse.urlparse(url)
         query_list = urlparse.parse_qsl(parsed_url.query)
-        curl_cmd = 'curl -G -L ' + parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path
+        curl_cmd = 'curl -G -L ' + parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path + " -o tmp_" + fid 
         for q in query_list:
             curl_cmd += ' -d ' + q[0] + '=' + q[1]
-
-        trackers = self.opts.trackers
-        mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='-'" % (trackers, domain, fid)
-
-        cmd = curl_cmd + ' | ' + mogupload_cmd
-        result = os.system(cmd)
+        result = os.system(curl_cmd)    # download video file and save as tmp file
+        if 0 == result:
+            # tmp video file downloaded, and upload it to mogilefs
+            trackers = self.opts.trackers
+            mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='%s'" % (trackers, domain, fid, "tmp_" + fid)
+            result = os.system(mogupload_cmd)
+        
+        os.remove("tmp_" + fid) # delete the tmp file
         return result
 
     def _get_episodes(self, source_id):
