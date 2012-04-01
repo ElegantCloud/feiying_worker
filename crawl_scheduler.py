@@ -2,6 +2,7 @@
 
 import gearman
 import os
+import os.path
 import sys
 from optparse import OptionParser
 from apscheduler.scheduler import Scheduler
@@ -39,7 +40,31 @@ def main():
     @sched.cron_schedule(hour=21, minute=25)
     def crawl_letv_series():
         os.system(cmd + 'letv_series')
-
+   
+    # schedule the task of feiying rt index backup in coreseek
+    @sched.cron_schedule(hour=1)
+    def backup_feiying_rt_index():
+        bak_path = '/backups'
+        is_path_ready = True
+        if os.path.exists(bak_path) == False:
+            # mkdir for backup path
+            try:
+                os.makedirs(bak_path)
+                print 'create ' + bak_path + ' successfully'
+            except error:
+                is_path_ready = False
+                print 'create ' + bak_path + " error"
+        # do backup
+        bak_file_name = "feiying_bak.tar.gz"
+        tmp_bak_name = "tmp_" + bak_file_name
+        coreseek_data_path = "/usr/local/coreseek/var/data" 
+        if is_path_ready == True:
+            backup_cmd = "tar -zcvf " + bak_path + "/" + tmp_bak_name + " " + coreseek_data_path  + "/feiying_rt.* " + coreseek_data_path + "/binlog.*"
+            result = os.system(backup_cmd)
+            if 0 == result:
+                # delete previous backup file, and rename tmp backup file to formal backup file
+                os.rename(bak_path + "/" + tmp_bak_name, bak_path + "/" + bak_file_name)
+        
     sched.start()
 
 if __name__ == '__main__':
