@@ -74,9 +74,14 @@ class FeiyingGearmanClient(object):
 
 
 class FeiyingTask(object):
-    def __init__(self, db, max_queued):
-        self.db = db
-        self.max_queued = max_queued
+    def __init__(self, options):
+        self.db = oursql.connect(
+            host = options.host,
+            port = options.port,
+            user = options.user,
+            passwd = options.pwd,
+            db = options.db)
+        self.max_queued = options.num
 
     def _query_db(self, sql, param):
         rl = None
@@ -147,23 +152,23 @@ class MovieTask(FeiyingTask):
         return {'source_id':r[0], 'title':r[1], 'channel':r[2], 'image_url':r[3], 'video_url':r[4], 'release_date':r[5],
                 'origin':r[6], 'director':r[7], 'actor':r[8]}
 
-def schedule(gmclient, db, num):
+def schedule(gmclient, opts):
     sched = Scheduler()
     sched.daemonic = False
 
     @sched.cron_schedule(minute=00)
     def movie_task():
-        task = MovieTask(db, num)
+        task = MovieTask(opts)
         gmclient.submit_job(task)
      
     @sched.cron_schedule(minute=10)
     def series_task():
-        task = SeriesTask(db, num)
+        task = SeriesTask(opts)
         gmclient.submit_job(task)
     
     @sched.cron_schedule(minute=40)
     def useries_task():
-        task = UpdatingSeriesTask(db, num)
+        task = UpdatingSeriesTask(opts)
         gmclient.submit_job(task)
 
     sched.start()
@@ -212,15 +217,8 @@ def main():
         gmclient.dump_workers()
         sys.exit()
 
-    db = oursql.connect(
-            host = options.host,
-            port = options.port,
-            user = options.user,
-            passwd = options.pwd,
-            db = options.db)
-
     if options.schedule_flag:
-        schedule(gmclient, db, options.num)
+        schedule(gmclient, options)
         sys.exit()
 
     if options.task == None:
@@ -229,11 +227,11 @@ def main():
 
     task = None
     if options.task == 'movie':
-        task = MovieTask(db, options.num)
+        task = MovieTask(options)
     elif options.task == 'series':
-        task = SeriesTask(db, options.num)
+        task = SeriesTask(options)
     elif options.task == 'useries':
-        task = UpdatingSeriesTask(db, options.num)
+        task = UpdatingSeriesTask(options)
     else:
         parser.print_help()
         sys.exit()
