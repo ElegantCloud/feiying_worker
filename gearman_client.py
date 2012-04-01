@@ -1,4 +1,5 @@
 # gearman_client.py
+# schedule the task of movie, series, useries downloading
 
 import json
 import gearman
