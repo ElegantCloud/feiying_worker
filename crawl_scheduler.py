@@ -42,7 +42,7 @@ def main():
         os.system(cmd + 'letv_series')
    
     # schedule the task of feiying rt index backup in coreseek
-    @sched.interval_schedule(hour=1)
+    @sched.interval_schedule(hours=1)
     def backup_feiying_rt_index():
         bak_path = '/backups'
         is_path_ready = True
