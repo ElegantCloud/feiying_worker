@@ -43,7 +43,7 @@ def main():
    
     # schedule the task of feiying rt index backup in coreseek
     @sched.interval_schedule(hours=1)
-    def backup_feiying_rt_index():
+    def backup_feiying_mysql_index():
         bak_path = '/backups'
         is_path_ready = True
         if os.path.exists(bak_path) == False:
@@ -59,12 +59,16 @@ def main():
         tmp_bak_name = "tmp_" + bak_file_name
         coreseek_data_path = "/usr/local/coreseek/var/data" 
         if is_path_ready == True:
-            backup_cmd = "tar -zcvf " + bak_path + "/" + tmp_bak_name + " " + coreseek_data_path  + "/feiying_rt.* " + coreseek_data_path + "/binlog.*"
+            backup_cmd = "tar -zcvf " + bak_path + "/" + tmp_bak_name + " " + coreseek_data_path  + "/feiying_mysql.* " + coreseek_data_path + "/binlog.*"
             result = os.system(backup_cmd)
             if 0 == result:
                 # delete previous backup file, and rename tmp backup file to formal backup file
                 os.rename(bak_path + "/" + tmp_bak_name, bak_path + "/" + bak_file_name)
-        
+    
+    def index_feiying_mysql():
+        index_cmd = "/usr/local/coreseek/bin/indexer -c /usr/local/coreseek/etc/feiying_mysql.conf --all --rotate --quiet"
+        os.system(index_cmd)
+    
     sched.start()
 
 if __name__ == '__main__':
