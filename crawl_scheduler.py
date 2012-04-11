@@ -41,8 +41,8 @@ def main():
     def crawl_letv_series():
         os.system(cmd + 'letv_series')
    
-    # schedule the task of feiying rt index backup in coreseek
-    @sched.interval_schedule(hours=1)
+    # schedule the task of feiying mysql index backup in coreseek
+    @sched.interval_schedule(hours=3)
     def backup_feiying_mysql_index():
         bak_path = '/backups'
         is_path_ready = True
@@ -65,6 +65,8 @@ def main():
                 # delete previous backup file, and rename tmp backup file to formal backup file
                 os.rename(bak_path + "/" + tmp_bak_name, bak_path + "/" + bak_file_name)
     
+    # Schedule the task of feiying mysql index
+    @sched.interval_schedule(hours=2)
     def index_feiying_mysql():
         index_cmd = "/usr/local/coreseek/bin/indexer -c /usr/local/coreseek/etc/feiying_mysql.conf --all --rotate --quiet"
         os.system(index_cmd)
