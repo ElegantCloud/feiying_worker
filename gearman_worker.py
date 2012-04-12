@@ -101,6 +101,7 @@ class BaseWorker(object):
         return len(el) 
     
     def _update_status(self, source_id, status):
+        self.logger.info('update status - source id: %s status: %d ', source_id, status)
         sql = """ UPDATE fy_video SET status=? WHERE source_id=? """ 
         param = (status, source_id)
         with self.db.cursor() as cursor:
@@ -113,19 +114,27 @@ class BaseWorker(object):
             cursor.execute(sql, param)
 
     def _download(self, fid, url, domain):
+        self.logger.info('# download ' + fid)
         parsed_url = urlparse.urlparse(url)
         query_list = urlparse.parse_qsl(parsed_url.query)
-        curl_cmd = 'curl -G -L ' + parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path + " -o tmp_" + fid 
+        tmp_file_path = '/tmp/'
+        curl_cmd = 'curl -G -L ' + parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path + " -o " + tmp_file_path + "tmp_" + fid 
         for q in query_list:
             curl_cmd += ' -d ' + q[0] + '=' + q[1]
+        self.logger.info('# begin to download - cmd: ' + curl_cmd)
         result = os.system(curl_cmd)    # download video file and save as tmp file
+        self.logger.info('# download result: %d', result)
         if 0 == result:
             # tmp video file downloaded, and upload it to mogilefs
             trackers = self.opts.trackers
-            mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='%s'" % (trackers, domain, fid, "tmp_" + fid)
+            mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='%s'" % (trackers, domain, fid, tmp_file_path + "tmp_" + fid)
+            self.logger.info('# tmp video file downloaded, begin to upload to mogilefs')
+            self.logger.info('# mogupload_cmd: ' + mogupload_cmd)
             result = os.system(mogupload_cmd)
+            self.logger.info('upload result: %d', result)
         
-        os.remove("tmp_" + fid) # delete the tmp file
+        os.remove(tmp_file_path + "tmp_" + fid) # delete the tmp file
+        self.logger.info('# tmp file %s is deleted', fid)
         return result
 
     def _get_episodes(self, source_id):
