@@ -133,7 +133,7 @@ class BaseWorker(object):
             result = os.system(mogupload_cmd)
             self.logger.info('upload result: %d', result)
         
-        os.remove("tmp_" + fid) # delete the tmp file
+        os.remove(tmp_file_path + "tmp_" + fid) # delete the tmp file
         self.logger.info('# tmp file %s is deleted', fid)
         return result
 
