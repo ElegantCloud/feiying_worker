@@ -154,11 +154,13 @@ class VideoWorker(BaseWorker):
     def do_work(self, w, j):
         data = json.loads(j.data)
         r = self._download_single(data) 
-        self.logger.info('download %s result=%d', data['source_id'], r)
         if r == 0:
-            req = self.gmclient.submit_job('fy_sphinx_index', j.data, wait_until_complete=False,
-                background=True)
-            self.gmclient.wait_until_jobs_accepted([req])
+            self.logger.info('download %s result=%d', data['source_id'], r)
+#            req = self.gmclient.submit_job('fy_sphinx_index', j.data, wait_until_complete=False,
+#                background=True)
+#            self.gmclient.wait_until_jobs_accepted([req])
+        else:
+            self.logger.error('download %s result=%d', data['source_id'], r)
 
 class MovieWorker(VideoWorker):
     name = 'fy_movie_download'
@@ -187,9 +189,9 @@ class SeriesWorker(BaseWorker):
 
         if r > 0: # r is the episode count just downloaded
             self._update_status(source_id, 100) #download complete successfully
-            req = self.gmclient.submit_job('fy_sphinx_index', j.data, wait_until_complete=False,
-                    background=True)
-            self.gmclient.wait_until_jobs_accepted([req])
+#            req = self.gmclient.submit_job('fy_sphinx_index', j.data, wait_until_complete=False,
+#                    background=True)
+#            self.gmclient.wait_until_jobs_accepted([req])
         else: # r<=0
             self._update_status(source_id, 0) #download nothing
             
