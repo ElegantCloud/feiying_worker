@@ -126,8 +126,8 @@ class BaseWorker(object):
         #self.logger.info('# downloading - cmd: ' + curl_cmd)
         #result = os.system(curl_cmd)    # download video file and save as tmp file
        
-        self.logger.info('# downloading %s - url: %s', fid, url)
         try:
+            self.logger.info('# downloading %s - url: %s', fid, url)
             urlgrab(url, tmp_file_path + "tmp_" + fid)
             result = 0
             self.logger.info('# download ok')
