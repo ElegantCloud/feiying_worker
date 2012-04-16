@@ -119,6 +119,8 @@ class BaseWorker(object):
         #parsed_url = urlparse.urlparse(url)
         #query_list = urlparse.parse_qsl(parsed_url.query)
         tmp_file_path = '/tmp/'
+        tmp_file = tmp_file_path + "tmp_" + fid
+
         #video_url = parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path
         #curl_cmd = 'curl -G -L ' + parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path + " -o " + tmp_file_path + "tmp_" + fid 
         #for q in query_list:
@@ -126,11 +128,11 @@ class BaseWorker(object):
         #self.logger.info('# downloading - cmd: ' + curl_cmd)
         #result = os.system(curl_cmd)    # download video file and save as tmp file
        
-        self.logger.info('# downloading %s - url: %s', fid, url)
         try:
-            urlgrab(url, tmp_file_path + "tmp_" + fid)
+            self.logger.info('# downloading %s - url: %s', fid, url)
+            filename = urlgrab(url, tmp_file)
             result = 0
-            self.logger.info('# download ok')
+            self.logger.info('# download %s ok', filename)
         except Exception as (errno, strerr):
             result = errno
             self.logger.error('# download failed - errno: %d err info: %s', errno, strerr)
@@ -138,14 +140,14 @@ class BaseWorker(object):
         if 0 == result:
             # tmp video file downloaded, and upload it to mogilefs
             trackers = self.opts.trackers
-            mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='%s'" % (trackers, domain, fid, tmp_file_path + "tmp_" + fid)
+            mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='%s'" % (trackers, domain, fid, tmp_file)
             self.logger.info('# tmp video file downloaded, uploading to mogilefs')
             self.logger.info('# mogupload_cmd: ' + mogupload_cmd)
             result = os.system(mogupload_cmd)
             self.logger.info('# upload result: %d', result)
             
             if 0 == result:
-                os.remove(tmp_file_path + "tmp_" + fid) # delete the tmp file
+                os.remove(tmp_file) # delete the tmp file
                 self.logger.info('# tmp file %s is deleted', fid)
 
         self.logger.info('======  download %s end  ======', fid)
