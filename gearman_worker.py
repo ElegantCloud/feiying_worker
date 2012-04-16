@@ -11,6 +11,7 @@ import os
 import sys
 import urlparse
 from optparse import OptionParser
+from urlgrabber import urlgrab
 
 class BaseWorker(object):
 
@@ -115,14 +116,24 @@ class BaseWorker(object):
 
     def _download(self, fid, url, domain):
         self.logger.info('======  download %s begin  ======', fid)
-        parsed_url = urlparse.urlparse(url)
-        query_list = urlparse.parse_qsl(parsed_url.query)
+        #parsed_url = urlparse.urlparse(url)
+        #query_list = urlparse.parse_qsl(parsed_url.query)
         tmp_file_path = '/tmp/'
-        curl_cmd = 'curl -G -L ' + parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path + " -o " + tmp_file_path + "tmp_" + fid 
-        for q in query_list:
-            curl_cmd += ' -d ' + q[0] + '=' + q[1]
-        self.logger.info('# downloading - cmd: ' + curl_cmd)
-        result = os.system(curl_cmd)    # download video file and save as tmp file
+        #video_url = parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path
+        #curl_cmd = 'curl -G -L ' + parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path + " -o " + tmp_file_path + "tmp_" + fid 
+        #for q in query_list:
+        #    curl_cmd += ' -d ' + q[0] + '=' + q[1]
+        #self.logger.info('# downloading - cmd: ' + curl_cmd)
+        #result = os.system(curl_cmd)    # download video file and save as tmp file
+       
+        self.logger.info('# downloading %s - url: %s', fid, url)
+        try:
+            urlgrab(url, tmp_file_path + "tmp_" + fid)
+            result = 0
+            self.logger.info('download ok')
+        except Exception as (errno, strerr):
+            result = errno
+            self.logger.info('download failed - errno: %d err info: %s', errno, strerr)
         self.logger.info('# download result: %d', result)
         if 0 == result:
             # tmp video file downloaded, and upload it to mogilefs
