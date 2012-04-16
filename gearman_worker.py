@@ -11,7 +11,13 @@ import os
 import sys
 import urlparse
 from optparse import OptionParser
-from urlgrabber import urlgrab
+import urllib
+
+# config urllib
+class AppURLopener(urllib.FancyURLopener):
+    version = 'Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11'
+urllib._urlopener = AppURLopener()
+
 
 class BaseWorker(object):
 
@@ -130,12 +136,13 @@ class BaseWorker(object):
        
         try:
             self.logger.info('# downloading %s - url: %s', fid, url)
-            filename = urlgrab(url, tmp_file)
+            urllib.urlretrieve(url, tmp_file) 
             result = 0
-            self.logger.info('# download %s ok', filename)
-        except Exception as (errno, strerr):
-            result = errno
-            self.logger.error('# download failed - errno: %d err info: %s', errno, strerr)
+            self.logger.info('# download ok')
+        except IOError as (errtype, strerr):
+            result = -1
+            self.logger.error('# download failed - err type: {0} - err info: {1}'.format(errtype, strerr))
+        
         self.logger.info('# download result: %d', result)
         if 0 == result:
             # tmp video file downloaded, and upload it to mogilefs
