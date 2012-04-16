@@ -133,7 +133,7 @@ class BaseWorker(object):
             self.logger.info('download ok')
         except Exception as (errno, strerr):
             result = errno
-            self.logger.info('download failed - errno: %d err info: %s', errno, strerr)
+            self.logger.error('download failed - errno: %d err info: %s', errno, strerr)
         self.logger.info('# download result: %d', result)
         if 0 == result:
             # tmp video file downloaded, and upload it to mogilefs
