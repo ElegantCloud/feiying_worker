@@ -181,12 +181,12 @@ def schedule(gmclient, opts):
         task = SeriesTask(opts)
         gmclient.submit_job(task)
     
-    @sched.cron_schedule(minute=40)
+    @sched.cron_schedule(minute=30)
     def useries_task():
         task = UpdatingSeriesTask(opts)
         gmclient.submit_job(task)
 
-    @sched.cron_schedule(minute=45)
+    @sched.cron_schedule(minute=00)
     def error_episode_task():
         task = DownloadErrorEpisodeTask(opts)
         gmclient.submit_job(task)
