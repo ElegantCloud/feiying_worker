@@ -140,6 +140,20 @@ class UpdatingSeriesTask(SeriesTask):
     def _parse(self, r):
         return {'source_id':r[0], 'episode_count':r[1], 'episode_all':r[2]}
 
+class DownloadErrorEpisodeTask(SeriesTask):
+    name = 'fy_updating_series_download'
+    pending_status = 101
+    sql = """
+        SELECT v.source_id 
+        FROM fy_video AS v 
+        LEFT JOIN fy_tv_episode AS e USING(source_id)
+        WHERE v.channel=2 AND v.status=104 AND e.status=0
+        GROUP BY v.source_id
+        ORDER BY v.created_time DESC LIMIT ?"""
+
+    def _parse(self, r):
+        return {'source_id':r[0]}
+
 class MovieTask(FeiyingTask):
     name = 'fy_movie_download'
     #name = 'fy_sphinx_index'
@@ -170,6 +184,11 @@ def schedule(gmclient, opts):
     @sched.cron_schedule(minute=40)
     def useries_task():
         task = UpdatingSeriesTask(opts)
+        gmclient.submit_job(task)
+
+    @sched.cron_schedule(minute=45)
+    def error_episode_task():
+        task = DownloadErrorEpisodeTask(opts)
         gmclient.submit_job(task)
 
     sched.start()
