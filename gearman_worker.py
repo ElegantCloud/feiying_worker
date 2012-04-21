@@ -94,23 +94,32 @@ class BaseWorker(object):
         el = self._get_episodes(source_id)
         if el == None:
             self.logger.info('series %s has not any episodes for download', source_id)
-            return 0
+            return -1
     
         self.logger.info('series %s has %d episodes for download', source_id, len(el))
+        result = 0
         for e in el:
             url = e[0]
             index = e[1]
             r = self._download_episode(source_id, index, url, domain)
             self.logger.info('download series %s episode %d result=%d', source_id, index, r)
             if r != 0:
-                return (index, r)
+                result += 1
+            else: # udpate episode_count
+                self._update_episode_count(source_id, index)
 
-        return len(el) 
+        return result
     
     def _update_status(self, source_id, status):
         self.logger.info('update status - source id: %s status: %d ', source_id, status)
         sql = """ UPDATE fy_video SET status=? WHERE source_id=? """ 
         param = (status, source_id)
+        with self.db.cursor() as cursor:
+            cursor.execute(sql, param)
+
+    def _update_episode_count(self, source_id, count):
+        sql = "UPDATE fy_tv_series SET episode_count=? WHERE source_id=? AND episode_count<?"
+        param = (count, source_id, count)
         with self.db.cursor() as cursor:
             cursor.execute(sql, param)
 
@@ -216,17 +225,15 @@ class SeriesWorker(BaseWorker):
             return r
 
         r = self._download_multi(data, self.opts.video_domain)
-        if not isinstance(r, int):
-            self._update_status(source_id, 4)
-            return r
 
-        if r > 0: # r is the episode count just downloaded
+        if r > 0:
+            self._update_status(source_id, 4)
+        elif r == 0: #
             self._update_status(source_id, 100) #download complete successfully
-#            req = self.gmclient.submit_job('fy_sphinx_index', j.data, wait_until_complete=False,
-#                    background=True)
-#            self.gmclient.wait_until_jobs_accepted([req])
         else: # r<=0
             self._update_status(source_id, 0) #download nothing
+
+        return r
             
 
 class UpdatingSeriesWorker(BaseWorker):
@@ -239,18 +246,13 @@ class UpdatingSeriesWorker(BaseWorker):
     
         self._update_status(source_id, 102) # 102 begin download new episodes
         r = self._download_multi(data, self.opts.video_domain)
-        if not isinstance(r, int):
-            self._update_status(source_id, 104)
-            return r
-        else:
-            self._update_status(source_id, 100) #download complete successfully
-            count = data['episode_count']
-            sql = "UPDATE fy_tv_series SET episode_count=? WHERE source_id=?"
-            param = (count+r, source_id)
-            with self.db.cursor() as cursor:
-                cursor.execute(sql, param)
-            return 0
 
+        status = 100
+        if r > 0:
+             status = 104            
+        self._update_status(source_id, status) #download complete successfully
+        return r
+           
 
 def main():
     parser = OptionParser()
