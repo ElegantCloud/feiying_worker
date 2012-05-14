@@ -171,22 +171,22 @@ def schedule(gmclient, opts):
     sched = Scheduler()
     sched.daemonic = False
 
-    @sched.cron_schedule(minute=00)
+    @sched.cron_schedule(hour='2-23', minute=00)
     def movie_task():
         task = MovieTask(opts)
         gmclient.submit_job(task)
      
-    @sched.cron_schedule(minute=10)
+    @sched.cron_schedule(hour='2-23', minute=10)
     def series_task():
         task = SeriesTask(opts)
         gmclient.submit_job(task)
     
-    @sched.cron_schedule(minute=30)
+    @sched.cron_schedule(hour='2-23', minute=30)
     def useries_task():
         task = UpdatingSeriesTask(opts)
         gmclient.submit_job(task)
 
-    @sched.cron_schedule(minute=00)
+    @sched.cron_schedule(hour='2-23', minute=00)
     def error_episode_task():
         task = DownloadErrorEpisodeTask(opts)
         gmclient.submit_job(task)
