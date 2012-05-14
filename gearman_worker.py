@@ -12,6 +12,10 @@ import sys
 import urlparse
 from optparse import OptionParser
 import urllib
+import socket
+
+# timeout for socket - 10 seconds 
+socket.setdefaulttimeout(10.0)
 
 # config urllib
 class AppURLopener(urllib.FancyURLopener):
@@ -142,7 +146,7 @@ class BaseWorker(object):
         #    curl_cmd += ' -d ' + q[0] + '=' + q[1]
         #self.logger.info('# downloading - cmd: ' + curl_cmd)
         #result = os.system(curl_cmd)    # download video file and save as tmp file
-       
+        
         try:
             self.logger.info('# downloading %s - url: %s', fid, url)
             urllib.urlretrieve(url, tmp_file) 
@@ -151,7 +155,10 @@ class BaseWorker(object):
         except IOError as (errtype, strerr):
             result = -1
             self.logger.error('# download failed - err type: {0} - err info: {1}'.format(errtype, strerr))
-        
+        except socket.timeout:
+            result = -1
+            self.logger.error('# socket timeout for download')
+
         self.logger.info('# download result: %d', result)
         if 0 == result:
             # tmp video file downloaded, and upload it to mogilefs
