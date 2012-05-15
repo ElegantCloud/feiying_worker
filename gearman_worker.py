@@ -14,8 +14,8 @@ from optparse import OptionParser
 import urllib
 import socket
 
-# timeout for socket - 10 seconds 
-socket.setdefaulttimeout(10.0)
+# timeout for socket - 60 seconds 
+socket.setdefaulttimeout(60.0)
 
 # config urllib
 class AppURLopener(urllib.FancyURLopener):

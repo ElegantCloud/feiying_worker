@@ -6,7 +6,7 @@ class AppURLopener(urllib.FancyURLopener):
 
 urllib._urlopener = AppURLopener()
 
-url = 'ihttp://m.tudou.com/down.do?cp=1169&code=113300919&codetype=2&encodeurl=aHR0cDovLzExMy4zMS4zNC4xNzo4MC93b3JrLzUxLzExMy8zMDAvOTE5LzUxLjIwMTIwNDA5MDYzNzQ1Lm1wNA=='
+url = 'http://g4.ykimg.com/0100641F464F72AA27BBA4046A6E93A5BB9839-7B1B-050A-DCA8-C6CF54DE8F90'
 try:
     urllib.urlretrieve(url, 'test_file')
     result = 0
