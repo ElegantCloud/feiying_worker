@@ -155,26 +155,26 @@ class BaseWorker(object):
         except IOError as (errtype, strerr):
             result = -1
             self.logger.error('# download failed - err type: {0} - err info: {1}'.format(errtype, strerr))
-        except socket.timeout:
+        except:
             result = -1
             self.logger.error('# socket timeout for download')
+        finally:
+	    self.logger.info('# download result: %d', result)
+	    if 0 == result:
+	        # tmp video file downloaded, and upload it to mogilefs
+	        trackers = self.opts.trackers
+	        mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='%s'" % (trackers, domain, fid, tmp_file)
+	        self.logger.info('# tmp video file downloaded, uploading to mogilefs')
+	        self.logger.info('# mogupload_cmd: ' + mogupload_cmd)
+	        result = os.system(mogupload_cmd)
+	        self.logger.info('# upload result: %d', result)
+	        
+	        if 0 == result:
+		    os.remove(tmp_file) # delete the tmp file
+		    self.logger.info('# tmp file %s is deleted', fid)
 
-        self.logger.info('# download result: %d', result)
-        if 0 == result:
-            # tmp video file downloaded, and upload it to mogilefs
-            trackers = self.opts.trackers
-            mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='%s'" % (trackers, domain, fid, tmp_file)
-            self.logger.info('# tmp video file downloaded, uploading to mogilefs')
-            self.logger.info('# mogupload_cmd: ' + mogupload_cmd)
-            result = os.system(mogupload_cmd)
-            self.logger.info('# upload result: %d', result)
-            
-            if 0 == result:
-                os.remove(tmp_file) # delete the tmp file
-                self.logger.info('# tmp file %s is deleted', fid)
-
-        self.logger.info('======  download %s end  ======', fid)
-        
+	self.logger.info('======  download %s end  ======', fid)
+	
         return result
 
     def _get_episodes(self, source_id):
