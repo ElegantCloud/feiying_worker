@@ -33,13 +33,13 @@ def main():
     def crawl_tudou_video():
         os.system(cmd + 'tudou_video')
 
-    @sched.cron_schedule(hour=11, minute=25)
-    def crawl_letv_movie():
-        os.system(cmd + 'letv_movie')
+#    @sched.cron_schedule(hour=11, minute=25)
+#    def crawl_letv_movie():
+#        os.system(cmd + 'letv_movie')
              
-    @sched.cron_schedule(hour=21, minute=25)
-    def crawl_letv_series():
-        os.system(cmd + 'letv_series')
+#    @sched.cron_schedule(hour=21, minute=25)
+#    def crawl_letv_series():
+#        os.system(cmd + 'letv_series')
    
     # schedule the task of feiying mysql index backup in coreseek
     @sched.interval_schedule(hours=3)
