@@ -137,6 +137,7 @@ class BaseWorker(object):
         self.logger.info('======  download %s begin  ======', fid)
         #parsed_url = urlparse.urlparse(url)
         #query_list = urlparse.parse_qsl(parsed_url.query)
+        prefix, ext = fid.split(".")
         tmp_file_path = '/tmp/'
         tmp_file = tmp_file_path + "tmp_" + fid
 
@@ -150,32 +151,68 @@ class BaseWorker(object):
         try:
             self.logger.info('# downloading %s - url: %s', fid, url)
             urllib.urlretrieve(url, tmp_file) 
-            result = 0
             self.logger.info('# download ok')
         except IOError as (errtype, strerr):
-            result = -1
             self.logger.error('# download failed - err type: {0} - err info: {1}'.format(errtype, strerr))
+            return -1
         except:
-            result = -1
             self.logger.error('# socket timeout for download')
-        finally:
-	    self.logger.info('# download result: %d', result)
-	    if 0 == result:
-	        # tmp video file downloaded, and upload it to mogilefs
-	        trackers = self.opts.trackers
-	        mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='%s'" % (trackers, domain, fid, tmp_file)
-	        self.logger.info('# tmp video file downloaded, uploading to mogilefs')
-	        self.logger.info('# mogupload_cmd: ' + mogupload_cmd)
-	        result = os.system(mogupload_cmd)
-	        self.logger.info('# upload result: %d', result)
-	        
-	        if 0 == result:
-		    os.remove(tmp_file) # delete the tmp file
-		    self.logger.info('# tmp file %s is deleted', fid)
+            return -2
+        
+        result = 0
+        # sgement mp4 to MPEG-TS files 
+        if ".mp4" == ext:
+            tmp_dir = tmp_file_path + prefix + '/'
+            os.makedirs(tmp_dir)
+            ffmpeg_segment_cmd = "ffmpeg -i %s -f segment -segment_time 10 -segment_format
+                mpegts -codec copy -bsf:v h264_mp4toannexb -map 0 %s" % (tmp_file, tmp_dir+prefix)
+            ffmpeg_segment_cmd = ffmpeg_segment_cmd + "-%d.ts"
+            result = os.system(ffmpeg_segment_cmd)
+            if 0 != result:
+                self.logger.error("Cannot segment file %s to MPEG-TS. return code = %d" %
+                        (tmp_file, result))
+                return -3
 
-	self.logger.info('======  download %s end  ======', fid)
-	
-        return result
+            #generate m3u8 for MPEG-TS segments
+            m3u8_cmd = "m3u8 %s 0 %s.m3u8 10 http://fy2.richitec.com/feiying/" % (tmp_file,
+                    tmp_dir+prefix)
+            result = os.system(m3u8_cmd)
+            if 0 != result:
+                self.logger.error("Cannot generate m3u8 for %s segments. return code = %d" %
+                        (tmp_file, result))
+                return -4
+
+            #save MPEG-TS segments and m3u8 to MogileFS
+            wl = os.walk(tmp_dir)
+            for w in wl:
+                break
+
+            fl = w[2]
+            for f in fl:
+                result = self._save_mogilefs(self.opts.trackers, domain, f, tmp_dir+f)
+                if 0 != result:
+                    self.logger.error("Cannot save file %s to MogileFS. return code = %d" %
+                            (tmp_dir+f, result))
+                    break
+
+            if 0 == result:
+                os.rmdir(tmp_dir)
+         
+        # tmp video file downloaded, and upload it to mogilefs
+        result = self._save_mogilefs(self.opts.trackers, domain, fid, tmp_file)
+        if 0 != result:
+            self.logger.error("Cannot save file %s to MogileFS. return code = %d" % (tmp_file,
+                result))
+
+        return 0
+
+    def _save_mogilefs(self, trackers, domain, key, file_path):
+        mogupload_cmd = "mogupload --trackers=%s --domain=%s --key='%s' --file='%s'" % (trackers,
+                domain, key, file_path)
+        r = os.system(mogupload_cmd)
+        if 0 == r:
+            os.remove(file_path)
+        return r
 
     def _get_episodes(self, source_id):
         sql = """
