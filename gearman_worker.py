@@ -161,7 +161,7 @@ class BaseWorker(object):
         
         result = 0
         # sgement mp4 to MPEG-TS files 
-        if ".mp4" == ext:
+        if "mp4" == ext:
             tmp_dir = tmp_file_path + prefix + '/'
             os.makedirs(tmp_dir)
             ffmpeg_segment_cmd = "ffmpeg -i %s -f segment -segment_time 10 -segment_format \
