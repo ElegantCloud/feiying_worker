@@ -31,7 +31,7 @@ class BaseWorker(object):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(logging.DEBUG)
 
-        lh = logging.handlers.TimedRotatingFileHandler('/tmp/'+self.name+'.log', when='midnight')
+        lh = logging.handlers.TimedRotatingFileHandler('/tmp/'+self.name+'.log', when='midnight', backupCount=10)
         lh.setLevel(logging.DEBUG)
 
         lf = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
@@ -164,7 +164,7 @@ class BaseWorker(object):
         if ".mp4" == ext:
             tmp_dir = tmp_file_path + prefix + '/'
             os.makedirs(tmp_dir)
-            ffmpeg_segment_cmd = "ffmpeg -i %s -f segment -segment_time 10 -segment_format
+            ffmpeg_segment_cmd = "ffmpeg -i %s -f segment -segment_time 10 -segment_format \
                 mpegts -codec copy -bsf:v h264_mp4toannexb -map 0 %s" % (tmp_file, tmp_dir+prefix)
             ffmpeg_segment_cmd = ffmpeg_segment_cmd + "-%d.ts"
             result = os.system(ffmpeg_segment_cmd)
