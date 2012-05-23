@@ -175,7 +175,7 @@ class BaseWorker(object):
                 return -3
 
             #generate m3u8 for MPEG-TS segments
-            m3u8_cmd = "m3u8 %s 0 %s.m3u8 10 http://fy2.richitec.com/feiying/" % (tmp_dir+ts_prefix,
+            m3u8_cmd = "m3u8 %s %s 0 %s.m3u8 10 http://fy2.richitec.com/feiying/" % (tmp_dir, ts_prefix,
                     tmp_dir+prefix)
             result = os.system(m3u8_cmd)
             if 0 != result:
