@@ -5,6 +5,9 @@ import sys
 import oursql
 from optparse import OptionParser
 import mogilefs
+import gearman_client 
+from ctypes import *
+from ffmpeg import *
 
 class Action(object):
     def __init__(self, options):
@@ -76,11 +79,28 @@ class Checkm3u8Action(Action):
                 d = DeleteAction(self.options)
                 d.doAction()
             
+class AddAction(Action):
+    def doAction(self):
+        av_register_all() 
+        pfmtcx = POINTER(AVFormatContext)()
+        if avformat_open_input(pfmtcx, self.options.filepath, None, None):
+            print "Cannot open file %s" % self.options.filepath
+        if avformat_find_stream_info(pfmtcx, None) != 0:
+            print "Cannot find stream info"
+
+        fmtcx = pfmtcx.contents
+        for i in range(fmtcx.nb_streams):
+            s = fmtcx.streams[i].contents 
+            codec_type = s.codec.contents.codec_type
+            if codec_type == AVMEDIA_TYPE_VIDEO:
+                duration = s.duration * s.time_base.num / s.time_base.den
+        print duration
 
 def main():
     parser = OptionParser()
-    parser.add_option('--action', dest='action', help='action: list|delete|check|checkm3u8')
+    parser.add_option('--action', dest='action', help='action: add|list|delete|check|checkm3u8')
     parser.add_option('--source_id', dest='source_id', help='source_id of media file')
+    parser.add_option('--file', dest='filepath', help='input file')
 
     parser.add_option('--trackers', dest='trackers', default='127.0.0.1:7001', help='MogileFS trackers')
     parser.add_option('--domain', dest='domain', default='fydomain', help='MogileFS Domain')
@@ -109,6 +129,8 @@ def main():
         action = CheckAction(options)
     elif options.action == 'checkm3u8':
         action = Checkm3u8Action(options)
+    elif options.action == 'add':
+        action = AddAction(options)
     else:
         parser.print_help()
         sys.exit()
