@@ -37,11 +37,21 @@ class DeleteAction(Action):
         #delete form database
         self._setup_db()
         print "Delete %s from database." % self.options.source_id
-        sql = "delete from fy_video where source_id=?"
+
         params = (self.options.source_id, )
+
+        sql = "delete from fy_video where source_id=?"
+        with self.db.cursor() as cursor:
+            cursor.execute(sql, params)
+
+        sql = "delete from fy_fav where source_id=?"
         with self.db.cursor() as cursor:
             cursor.execute(sql, params)
         
+        sql = "delete from fy_share where source_id=?"
+        with self.db.cursor() as cursor:
+            cursor.execute(sql, params)
+
         #delete files of this source_id, include mp4, jpg, m3u8, ts
         try:
             keylist = self.client.list_keys(self.options.source_id) 
@@ -78,6 +88,22 @@ class Checkm3u8Action(Action):
                 self.options.source_id = r[0]
                 d = DeleteAction(self.options)
                 d.doAction()
+
+class CheckFavAction(Action):
+    def doAction(self):
+        self._setup_db()
+        sql = """select source_id, status, created_time from fy_video
+                 where channel>2 and share_count>0 order by created_time limit 100"""
+        with self.db.cursor() as cursor:
+            cursor.execute(sql)
+            result_list = cursor.fetchall()
+        for r in result_list:
+            paths = self.client.get_paths(r[0]+".m3u8")
+            if len(paths)<=0:
+                self.options.source_id = r[0]
+                d = DeleteAction(self.options)
+                d.doAction()
+        
             
 class AddAction(Action):
     def doAction(self):
@@ -98,7 +124,7 @@ class AddAction(Action):
 
 def main():
     parser = OptionParser()
-    parser.add_option('--action', dest='action', help='action: add|list|delete|check|checkm3u8')
+    parser.add_option('--action', dest='action', help='action: add|list|delete|check|checkm3u8|checkfav')
     parser.add_option('--source_id', dest='source_id', help='source_id of media file')
     parser.add_option('--file', dest='filepath', help='input file')
 
@@ -131,6 +157,8 @@ def main():
         action = Checkm3u8Action(options)
     elif options.action == 'add':
         action = AddAction(options)
+    elif options.action == 'checkfav':
+        action = CheckFavAction(options)
     else:
         parser.print_help()
         sys.exit()
