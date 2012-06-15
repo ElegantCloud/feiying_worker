@@ -140,7 +140,7 @@ class BaseWorker(object):
         #query_list = urlparse.parse_qsl(parsed_url.query)
         prefix, ext = fid.split(".")
         tmp_file_path = '/tmp/'
-        tmp_file = tmp_file_path + "tmp_" + fid
+        tmp_file = tmp_file_path + fid
 
         #video_url = parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path
         #curl_cmd = 'curl -G -L ' + parsed_url.scheme + '://' + parsed_url.netloc + parsed_url.path + " -o " + tmp_file_path + "tmp_" + fid 
