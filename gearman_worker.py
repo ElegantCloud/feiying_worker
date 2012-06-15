@@ -13,6 +13,7 @@ import urlparse
 from optparse import OptionParser
 import urllib
 import socket
+import m3u8
 
 # timeout for socket - 60 seconds 
 socket.setdefaulttimeout(60.0)
@@ -163,25 +164,12 @@ class BaseWorker(object):
         # sgement mp4 to MPEG-TS files 
         if "mp4" == ext:
             tmp_dir = tmp_file_path + prefix + '/'
-            ts_prefix = prefix + '-'
             os.makedirs(tmp_dir)
-            ffmpeg_segment_cmd = "ffmpeg -i %s -f segment -segment_time 10 -segment_format \
-                mpegts -codec copy -bsf:v h264_mp4toannexb -map 0 %s" % (tmp_file, tmp_dir+ts_prefix)
-            ffmpeg_segment_cmd = ffmpeg_segment_cmd + "%d.ts"
-            result = os.system(ffmpeg_segment_cmd)
-            if 0 != result:
-                self.logger.error("Cannot segment file %s to MPEG-TS. return code = %d" %
-                        (tmp_file, result))
+            r = m3u8.segment(tmp_file, tmp_dir, 10,
+                    "http://fy2.richitec.com/feiying/")
+            if r<0 :
+                self.logger.error('# m3u8.segment error %d' % r)
                 return -3
-
-            #generate m3u8 for MPEG-TS segments
-            m3u8_cmd = "m3u8 %s %s 0 %s.m3u8 10 http://fy2.richitec.com/feiying/" % (tmp_dir, ts_prefix,
-                    tmp_dir+prefix)
-            result = os.system(m3u8_cmd)
-            if 0 != result:
-                self.logger.error("Cannot generate m3u8 for %s segments. return code = %d" %
-                        (tmp_file, result))
-                return -4
 
             #save MPEG-TS segments and m3u8 to MogileFS
             wl = os.walk(tmp_dir)
