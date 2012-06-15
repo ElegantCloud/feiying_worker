@@ -59,18 +59,18 @@ def segment(input_file, output_dir, segment_time, http_prefix):
         i = i+1
         
     #generate m3u8 index file for MPEGTS segments
-    m3u8_file_name = output_dir + file_name + "-high.m3u8"
+    ts_m3u8_file_name = output_dir + file_name + "-high.m3u8"
     m3u8_cmd = "m3u8 %s %s %d %s %d %s " % (output_dir, ts_file_pattern, 0,
-            m3u8_file_name, segment_time, http_prefix )
+            ts_m3u8_file_name, segment_time, http_prefix )
     r = os.system(m3u8_cmd)
     if 0 != r:
         print "Cannot generate %s" % m3u8_file_name
         return -4
 
     #generate m3u8 index file for audio segments
-    m3u8_file_name = output_dir + file_name + "-audio.m3u8"
+    aac_m3u8_file_name = output_dir + file_name + "-audio.m3u8"
     m3u8_cmd = "m3u8 %s %s %d %s %d %s " % (output_dir, aac_file_pattern, 0,
-            m3u8_file_name, segment_time, http_prefix )
+            aac_m3u8_file_name, segment_time, http_prefix )
     r = os.system(m3u8_cmd)
     if 0 != r:
         print "Cannot generate %s" % m3u8_file_name
@@ -78,7 +78,13 @@ def segment(input_file, output_dir, segment_time, http_prefix):
 
     #generate playlist 
     m3u8_file_name = output_dir + file_name + ".m3u8"
-    
+    f = open(m3u8_file_name, 'w')
+    f.write("#EXTM3U\n")
+    f.write("#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=512000\n")
+    f.write(http_prefix + ts_m3u8_file_name + '\n')
+    f.write("#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=64000\n")
+    f.write(http_prefix + aac_m3u8_file_name + '\n')
+    f.close()
 
     return 0
 
