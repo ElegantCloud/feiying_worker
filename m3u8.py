@@ -3,8 +3,6 @@
 import sys
 import os
 from optparse import OptionParser
-from ctypes import *
-from ffmpeg import *
 
 
 def extract_filename(str):
