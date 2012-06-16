@@ -55,9 +55,9 @@ class DeleteAction(Action):
         #delete files of this source_id, include mp4, jpg, m3u8, ts
         try:
             keylist = self.client.list_keys(self.options.source_id) 
-	    for k in keylist:
+            for k in keylist:
                 print "Delete %s from MogileFS." % k
-	        self.client.delete(k)
+                self.client.delete(k)
         except Exception as e:
             print e
 
@@ -77,8 +77,7 @@ class Checkm3u8Action(Action):
     def doAction(self):
         self._setup_db()
         sql = """select source_id, status, created_time from fy_video 
-                 where channel>2 and fav_count=0 and share_count=0 
-                 order by created_time limit 1000"""
+                 where channel>2 order by created_time"""
         with self.db.cursor() as cursor:
             cursor.execute(sql)
             result_list = cursor.fetchall()
@@ -103,6 +102,17 @@ class CheckFavAction(Action):
                 self.options.source_id = r[0]
                 d = DeleteAction(self.options)
                 d.doAction()
+
+class ClearKeysAction(Action):
+    def doAction(self):
+        try:
+            keylist = self.client.list_keys(self.options.key_prefix) 
+            for k in keylist:
+                print "Delete %s from MogileFS." % k
+                self.client.delete(k)
+        except Exception as e:
+            print e
+
         
             
 class AddAction(Action):
@@ -127,6 +137,7 @@ def main():
     parser.add_option('--action', dest='action', help='action: add|list|delete|check|checkm3u8|checkfav')
     parser.add_option('--source_id', dest='source_id', help='source_id of media file')
     parser.add_option('--file', dest='filepath', help='input file')
+    parser.add_option('--key_prefix', dest='key_prefix', help='key prefix')
 
     parser.add_option('--trackers', dest='trackers', default='127.0.0.1:7001', help='MogileFS trackers')
     parser.add_option('--domain', dest='domain', default='fydomain', help='MogileFS Domain')
@@ -159,6 +170,8 @@ def main():
         action = AddAction(options)
     elif options.action == 'checkfav':
         action = CheckFavAction(options)
+    elif options.action == 'clearkeys':
+        action = ClearKeysAction(options)
     else:
         parser.print_help()
         sys.exit()
