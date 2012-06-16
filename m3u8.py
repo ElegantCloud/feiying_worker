@@ -57,18 +57,18 @@ def segment(input_file, output_dir, segment_time, http_prefix):
         i = i+1
         
     #generate m3u8 index file for MPEGTS segments
-    ts_m3u8_file_name = output_dir + file_name + "-high.m3u8"
+    ts_m3u8_file_name = file_name + "-high.m3u8"
     m3u8_cmd = "m3u8 %s %s %d %s %d %s " % (output_dir, ts_file_pattern, 0,
-            ts_m3u8_file_name, segment_time, http_prefix )
+            output_dir + ts_m3u8_file_name, segment_time, http_prefix )
     r = os.system(m3u8_cmd)
     if 0 != r:
         print "Cannot generate %s" % m3u8_file_name
         return -4
 
     #generate m3u8 index file for audio segments
-    aac_m3u8_file_name = output_dir + file_name + "-audio.m3u8"
+    aac_m3u8_file_name = file_name + "-audio.m3u8"
     m3u8_cmd = "m3u8 %s %s %d %s %d %s " % (output_dir, aac_file_pattern, 0,
-            aac_m3u8_file_name, segment_time, http_prefix )
+            output_dir + aac_m3u8_file_name, segment_time, http_prefix )
     r = os.system(m3u8_cmd)
     if 0 != r:
         print "Cannot generate %s" % m3u8_file_name
