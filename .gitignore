@@ -1,4 +1,6 @@
 tags
 *.pyc
 *.swp
-
+*.mp4
+*.m3u8
+test/*
